@@ -1,0 +1,268 @@
+--[[ Killstreak Helper без ресета, с автоматическим возвратом после рагдолла ]]--
+
+local cloneref = cloneref or function(...) return ... end
+
+local sbPlaceIds = {
+    [6403373529] = true,
+    [11520107397] = true,
+    [124596094333302] = true,
+    [9015014224] = true,
+}
+
+if not sbPlaceIds[game.PlaceId] then
+    local MarketplaceService = cloneref(game:GetService("MarketplaceService"))
+    local gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name or "Unknown Game"
+    print("This script is for Slap Battles, but you are in " .. gameName)
+    return
+end
+
+if getgenv().KsHelper_Loaded then return end
+pcall(function() getgenv().KsHelper_Loaded = true end)
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local CoreGui = cloneref(game:GetService("CoreGui"))
+local StarterGui = cloneref(game:GetService("StarterGui"))
+local Players = cloneref(game:GetService("Players"))
+local LocalPlayer = cloneref(Players.LocalPlayer)
+local guiParent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui
+
+local function randomString()
+	local len = math.random(10,20)
+	local arr = {}
+	for i=1,len do arr[i] = string.char(math.random(32,126)) end
+	return table.concat(arr)
+end
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = randomString()
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = guiParent
+
+local Frame = Instance.new("Frame")
+Frame.Name = randomString()
+Frame.Size = UDim2.new(0,250,0,180)
+Frame.Position = UDim2.new(0.5,-125,0.5,-90)
+Frame.BackgroundColor3 = Color3.fromRGB(36,36,37)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0,8)
+UICorner.Parent = Frame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(60,60,60)
+UIStroke.Parent = Frame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1,-30,0,30)
+Title.Position = UDim2.new(0,25,0,0)
+Title.BackgroundTransparency = 1
+Title.Text = "Killstreak Helper"
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Frame
+
+-- Кнопки
+local Minimize = Instance.new("TextButton")
+Minimize.Size = UDim2.new(0,25,0,25)
+Minimize.Position = UDim2.new(1,-60,0,2)
+Minimize.BackgroundColor3 = Color3.fromRGB(60,60,60)
+Minimize.Text = "_"
+Minimize.TextColor3 = Color3.fromRGB(255,255,255)
+Minimize.Font = Enum.Font.GothamBold
+Minimize.TextSize = 18
+Minimize.Parent = Frame
+local MinimizeUICorner = Instance.new("UICorner")
+MinimizeUICorner.CornerRadius = UDim.new(0,6)
+MinimizeUICorner.Parent = Minimize
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.new(0,25,0,25)
+Close.Position = UDim2.new(1,-30,0,2)
+Close.BackgroundColor3 = Color3.fromRGB(60,60,60)
+Close.Text = "X"
+Close.TextColor3 = Color3.fromRGB(255,255,255)
+Close.Font = Enum.Font.GothamBold
+Close.TextSize = 14
+Close.Parent = Frame
+local CloseUICorner = Instance.new("UICorner")
+CloseUICorner.CornerRadius = UDim.new(0,6)
+CloseUICorner.Parent = Close
+
+local TextBox = Instance.new("TextBox")
+TextBox.Position = UDim2.new(0.5,-100,0,40)
+TextBox.Size = UDim2.new(0,200,0,30)
+TextBox.PlaceholderText = "Player's name"
+TextBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+TextBox.TextColor3 = Color3.fromRGB(255,255,255)
+TextBox.Font = Enum.Font.Gotham
+TextBox.TextSize = 14
+TextBox.Parent = Frame
+
+local Start = Instance.new("TextButton")
+Start.Position = UDim2.new(0.5,-100,0,80)
+Start.Size = UDim2.new(0,90,0,30)
+Start.Text = "Start"
+Start.BackgroundColor3 = Color3.fromRGB(40,120,40)
+Start.TextColor3 = Color3.fromRGB(255,255,255)
+Start.Font = Enum.Font.GothamBold
+Start.TextSize = 14
+Start.Parent = Frame
+
+local Stop = Instance.new("TextButton")
+Stop.Position = UDim2.new(0.5,10,0,80)
+Stop.Size = UDim2.new(0,90,0,30)
+Stop.Text = "Stop"
+Stop.BackgroundColor3 = Color3.fromRGB(120,40,40)
+Stop.TextColor3 = Color3.fromRGB(255,255,255)
+Stop.Font = Enum.Font.GothamBold
+Stop.TextSize = 14
+Stop.Parent = Frame
+
+local IY = Instance.new("TextButton")
+IY.Position = UDim2.new(0.5,-100,0,140)
+IY.Size = UDim2.new(0,200,0,25)
+IY.Text = "Execute Infinite Yield"
+IY.BackgroundColor3 = Color3.fromRGB(70,70,70)
+IY.TextColor3 = Color3.fromRGB(255,255,255)
+IY.Font = Enum.Font.GothamBold
+IY.TextSize = 14
+IY.Parent = Frame
+local IY_UICorner = Instance.new("UICorner")
+IY_UICorner.CornerRadius = UDim.new(0,6)
+IY_UICorner.Parent = IY
+
+local function notify(msg)
+    StarterGui:SetCore("SendNotification",{Title="Killstreak Helper",Text=msg,Duration=3})
+end
+
+IY.MouseButton1Click:Connect(function()
+    if getgenv().IY_LOADED then
+        notify("Infinite Yield is already running!")
+        return
+    end
+    local success,_ = pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+    end)
+    if not success then notify("Infinite Yield failed to load") end
+end)
+
+for _,part in ipairs(workspace:WaitForChild("Lobby"):WaitForChild("brazil"):GetDescendants()) do
+    if part:IsA("BasePart") then part.CanTouch=false end
+end
+
+local helperRunning = false
+local targetPlayer
+
+local function findPlayer(nickname)
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p.Name:lower():find(nickname:lower()) or p.DisplayName:lower():find(nickname:lower()) then
+            return p
+        end
+    end
+    return nil
+end
+
+local function followTarget()
+    while helperRunning and targetPlayer do
+        local character = LocalPlayer.Character
+        if not character then task.wait(0.1) continue end
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid or humanoid.Health<=0 then task.wait(0.1) continue end
+        local isInArena = character:FindFirstChild("isInArena")
+        if not isInArena or not isInArena.Value then task.wait(0.1) continue end
+
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        local ragdolled = character:FindFirstChild("Ragdolled")
+        local targetCharacter = targetPlayer.Character
+        if not targetCharacter then task.wait(0.1) continue end
+        local targetHumanoid = targetCharacter:FindFirstChildOfClass("Humanoid")
+        local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+        local isTargetInArena = targetCharacter:FindFirstChild("isInArena")
+        local isTargetInArenaV2 = targetCharacter:FindFirstChild("KillstreakLevel")
+        if not targetHumanoid or targetHumanoid.Health<=0 or not targetRoot or (not isTargetInArena and not isTargetInArenaV2) then task.wait(0.1) continue end
+
+        -- если рагдолл, ждём окончания
+        if ragdolled and ragdolled.Value then
+            repeat task.wait(0.1) until not ragdolled.Value
+        end
+
+        -- телепортируемся к цели
+        if rootPart then
+            rootPart.CFrame = targetRoot.CFrame * CFrame.new(0,0,-4)
+        end
+
+        task.wait()
+    end
+end
+
+local function enterArena()
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local rootPart = character:WaitForChild("HumanoidRootPart")
+
+    while helperRunning and targetPlayer do
+        local targetCharacter = targetPlayer.Character
+        if targetCharacter then
+            local isTargetInArena = targetCharacter:FindFirstChild("isInArena")
+            local isTargetInArenaV2 = targetCharacter:FindFirstChild("KillstreakLevel")
+            if (isTargetInArena and isTargetInArena.Value) or isTargetInArenaV2 then
+                local portal = workspace:FindFirstChild("Lobby") and workspace.Lobby:FindFirstChild("Teleport1")
+                if portal and portal:IsA("BasePart") then
+                    rootPart.CFrame = portal.CFrame
+                end
+                break
+            end
+        end
+        task.wait(0.2)
+    end
+
+    if helperRunning then
+        followTarget()
+    end
+end
+
+local function startHelper()
+    local nameInput = TextBox.Text
+    if nameInput=="" then notify("Enter a player's name!") return end
+    local player = findPlayer(nameInput)
+    if not player then notify("Player not found!") return end
+    targetPlayer = player
+    helperRunning = true
+    task.spawn(enterArena)
+end
+
+local function stopHelper()
+    helperRunning = false
+end
+
+Minimize.MouseButton1Click:Connect(function()
+    local minimized = TextBox.Visible==false
+    for _,c in ipairs(Frame:GetChildren()) do
+        if (c:IsA("TextLabel") or c:IsA("TextButton") or c:IsA("TextBox")) and c~=Title and c~=Close and c~=Minimize then
+            c.Visible = minimized
+        end
+    end
+    Frame.Size = minimized and UDim2.new(0,250,0,180) or UDim2.new(0,250,0,30)
+end)
+
+Close.MouseButton1Click:Connect(function()
+    stopHelper()
+    if ScreenGui then ScreenGui:Destroy() end
+    getgenv().KsHelper_Loaded = nil
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+    if helperRunning and targetPlayer then
+        enterArena()
+    end
+end)
+
+Start.MouseButton1Click:Connect(startHelper)
+Stop.MouseButton1Click:Connect(stopHelper)
