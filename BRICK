@@ -1,0 +1,388 @@
+--[[  Killstreak Helper (offset XYZ sliders, -200..200, no reset)
+      Направления: X = право/лево, Y = вверх/вниз, Z = вперёд/назад
+      Смещение задаётся в ЛОКАЛЬНЫХ осях цели: targetRoot.CFrame * CFrame.new(X, Y, Z)
+]]--
+
+local cloneref = cloneref or function(...) return ... end
+
+-- Разрешённые PlaceId
+local sbPlaceIds = {
+    [6403373529] = true,
+    [11520107397] = true,
+    [124596094333302] = true,
+    [9015014224] = true,
+}
+
+if not sbPlaceIds[game.PlaceId] then
+    local MarketplaceService = cloneref(game:GetService("MarketplaceService"))
+    local gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name or "Unknown Game"
+    print("This script is for Slap Battles, but you are in " .. gameName)
+    return
+end
+
+if getgenv().KsHelper_Loaded then return end
+pcall(function() getgenv().KsHelper_Loaded = true end)
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+-- Services / locals
+local CoreGui    = cloneref(game:GetService("CoreGui"))
+local StarterGui = cloneref(game:GetService("StarterGui"))
+local Players    = cloneref(game:GetService("Players"))
+local LocalPlayer= Players.LocalPlayer
+local UIS        = cloneref(game:GetService("UserInputService"))
+
+local guiParent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui
+
+local function randomString()
+    local length = math.random(10,20)
+    local array = {}
+    for i = 1, length do
+        array[i] = string.char(math.random(32, 126))
+    end
+    return table.concat(array)
+end
+
+-- UI root
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = randomString()
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = guiParent
+
+local Frame = Instance.new("Frame")
+Frame.Name = randomString()
+Frame.Size = UDim2.new(0, 280, 0, 320)
+Frame.Position = UDim2.new(0.5, -140, 0.5, -160)
+Frame.BackgroundColor3 = Color3.fromRGB(36, 36, 37)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = Frame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(60, 60, 60)
+UIStroke.Parent = Frame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -60, 0, 30)
+Title.Position = UDim2.new(0, 25, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Killstreak Helper"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Frame
+
+local Minimize = Instance.new("TextButton")
+Minimize.Size = UDim2.new(0, 25, 0, 25)
+Minimize.Position = UDim2.new(1, -60, 0, 2)
+Minimize.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+Minimize.Text = "_"
+Minimize.TextColor3 = Color3.fromRGB(255, 255, 255)
+Minimize.Font = Enum.Font.GothamBold
+Minimize.TextSize = 18
+Minimize.Parent = Frame
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.new(0, 25, 0, 25)
+Close.Position = UDim2.new(1, -30, 0, 2)
+Close.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+Close.Text = "X"
+Close.TextColor3 = Color3.fromRGB(255, 255, 255)
+Close.Font = Enum.Font.GothamBold
+Close.TextSize = 14
+Close.Parent = Frame
+
+local function Label(parent, text, x, y, bold)
+    local l = Instance.new("TextLabel")
+    l.Position = UDim2.new(0.5, x, 0, y)
+    l.Size = UDim2.new(0, 220, 0, 20)
+    l.BackgroundTransparency = 1
+    l.TextColor3 = Color3.fromRGB(255,255,255)
+    l.Font = bold and Enum.Font.GothamBold or Enum.Font.Gotham
+    l.TextSize = 14
+    l.Text = text
+    l.Parent = parent
+    return l
+end
+
+local TextBox = Instance.new("TextBox")
+TextBox.Position = UDim2.new(0.5, -110, 0, 35)
+TextBox.Size = UDim2.new(0, 220, 0, 30)
+TextBox.Text = ""
+TextBox.PlaceholderText = "Player's name"
+TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.Font = Enum.Font.Gotham
+TextBox.TextSize = 14
+TextBox.Parent = Frame
+
+-- Универсальный конструктор слайдера: диапазон -200..200
+local function makeSlider(parent, title, topY, defaultValue)
+    local titleLabel = Label(parent, title .. ": " .. tostring(defaultValue), -110, topY, true)
+
+    local bar = Instance.new("Frame")
+    bar.Position = UDim2.new(0.5, -110, 0, topY + 25)
+    bar.Size = UDim2.new(0, 220, 0, 6)
+    bar.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    bar.BorderSizePixel = 0
+    bar.Parent = parent
+
+    local zeroMark = Instance.new("Frame")
+    zeroMark.Size = UDim2.new(0, 2, 1, 0)
+    zeroMark.Position = UDim2.new(0.5, -1, 0, 0)
+    zeroMark.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    zeroMark.BorderSizePixel = 0
+    zeroMark.Parent = bar
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(0.5, 0, 1, 0) -- начально по центру
+    fill.BackgroundColor3 = Color3.fromRGB(40, 120, 255)
+    fill.BorderSizePixel = 0
+    fill.Parent = bar
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 10, 0, 10)
+    knob.Position = UDim2.new(0.5, -5, 0.5, -5)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.Parent = bar
+    local knobCorner = Instance.new("UICorner")
+    knobCorner.CornerRadius = UDim.new(1, 0)
+    knobCorner.Parent = knob
+
+    local value = defaultValue
+    local dragging = false
+
+    local function updateVisualFromValue()
+        -- value \in [-200, 200] -> rel \in [0,1], где 0.5 = 0
+        local rel = (value + 200) / 400
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        knob.Position = UDim2.new(rel, -5, 0.5, -5)
+        titleLabel.Text = ("%s: %d"):format(title, value)
+    end
+
+    local function setFromX(x)
+        local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+        value = math.floor(rel * 400 + 0.5) - 200
+        updateVisualFromValue()
+    end
+
+    knob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    knob.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    bar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            setFromX(input.Position.X)
+            dragging = true
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            setFromX(input.Position.X)
+        end
+    end)
+
+    updateVisualFromValue()
+
+    return {
+        get = function() return value end,
+        set = function(v) value = math.clamp(math.floor(v+0.5), -200, 200); updateVisualFromValue() end,
+        widgets = {titleLabel, bar, fill, knob, zeroMark}
+    }
+end
+
+-- Три слайдера: X (право/лево), Y (вверх/вниз), Z (вперёд/назад)
+local XSlider = makeSlider(Frame, "X (Right/Left)", 75,   0)  -- +X = вправо
+local YSlider = makeSlider(Frame, "Y (Up/Down)",   135,  0)  -- +Y = вверх
+local ZSlider = makeSlider(Frame, "Z (Forward/Back)",195, -4) -- +Z = вперёд, -Z = назад; по умолчанию слегка позади цели
+
+-- Кнопки
+local Start = Instance.new("TextButton")
+Start.Position = UDim2.new(0.5, -110, 0, 255)
+Start.Size = UDim2.new(0, 100, 0, 30)
+Start.Text = "Start"
+Start.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
+Start.TextColor3 = Color3.fromRGB(255, 255, 255)
+Start.Font = Enum.Font.GothamBold
+Start.TextSize = 14
+Start.Parent = Frame
+
+local Stop = Instance.new("TextButton")
+Stop.Position = UDim2.new(0.5, 10, 0, 255)
+Stop.Size = UDim2.new(0, 100, 0, 30)
+Stop.Text = "Stop"
+Stop.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
+Stop.TextColor3 = Color3.fromRGB(255, 255, 255)
+Stop.Font = Enum.Font.GothamBold
+Stop.TextSize = 14
+Stop.Parent = Frame
+
+local IY = Instance.new("TextButton")
+IY.Position = UDim2.new(0.5, -110, 0, 295)
+IY.Size = UDim2.new(0, 220, 0, 20)
+IY.Text = "Execute Infinite Yield"
+IY.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+IY.TextColor3 = Color3.fromRGB(255, 255, 255)
+IY.Font = Enum.Font.GothamBold
+IY.TextSize = 13
+IY.Parent = Frame
+
+local function notify(message)
+    StarterGui:SetCore("SendNotification", {
+        Title = "Notice",
+        Text = message,
+        Duration = 3
+    })
+end
+
+IY.MouseButton1Click:Connect(function()
+    if getgenv().IY_LOADED then
+        notify("Infinite Yield is already running!")
+        return
+    end
+    local success = pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+    end)
+    if not success then
+        notify("Infinite Yield failed to load")
+    end
+end)
+
+-- Уберём касания у "brazil" (как раньше)
+task.spawn(function()
+    local ok, err = pcall(function()
+        for _, part in ipairs(workspace:WaitForChild("Lobby"):WaitForChild("brazil"):GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanTouch = false
+            end
+        end
+    end)
+    if not ok then warn(err) end
+end)
+
+-- Логика фолловера
+local helperRunning = false
+local targetPlayer
+
+local function findPlayer(nickname)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Name:lower():find(nickname:lower()) or player.DisplayName:lower():find(nickname:lower()) then
+            return player
+        end
+    end
+    return nil
+end
+
+local function followTarget()
+    while helperRunning and targetPlayer do
+        local character = LocalPlayer.Character
+        if not character then task.wait(0.05) continue end
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then task.wait(0.05) continue end
+
+        local isInArena = character:FindFirstChild("isInArena")
+        if not isInArena or not isInArena.Value then task.wait(0.05) continue end
+
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        local ragdolled = character:FindFirstChild("Ragdolled")
+
+        local targetCharacter = targetPlayer.Character
+        if not targetCharacter then task.wait(0.05) continue end
+
+        local targetHumanoid = targetCharacter:FindFirstChildOfClass("Humanoid")
+        local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+        if not targetRoot or not targetHumanoid or targetHumanoid.Health <= 0 then task.wait(0.05) continue end
+
+        -- Без ресета. Смещение в ЛОКАЛЬНЫХ осях цели: X (вправо/влево), Y (вверх/вниз), Z (вперёд/назад)
+        if not (ragdolled and ragdolled.Value) then
+            if rootPart then
+                local ox = XSlider.get() or 0
+                local oy = YSlider.get() or 0
+                local oz = ZSlider.get() or 0
+                -- Шаг — 1 студ. Если нужно «в метрах», масштабируй коэффициентом.
+                rootPart.CFrame = targetRoot.CFrame * CFrame.new(ox, oy, oz)
+            end
+        end
+
+        task.wait()
+    end
+end
+
+local function enterArena()
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local rootPart = character:WaitForChild("HumanoidRootPart")
+
+    while helperRunning and targetPlayer do
+        local targetCharacter = targetPlayer.Character
+        if targetCharacter then
+            local isTargetInArena = targetCharacter:FindFirstChild("isInArena")
+            if isTargetInArena and isTargetInArena.Value then
+                local portal = workspace:FindFirstChild("Lobby") and workspace.Lobby:FindChild("Teleport1") or workspace.Lobby:FindFirstChild("Teleport1")
+                if not portal and workspace:FindFirstChild("Lobby") then
+                    portal = workspace.Lobby:FindFirstChild("Teleport1")
+                end
+                if portal and portal:IsA("BasePart") then
+                    rootPart.CFrame = portal.CFrame
+                end
+                break
+            end
+        end
+        task.wait(0.2)
+    end
+
+    if helperRunning then followTarget() end
+end
+
+local function startHelper()
+    local nameInput = TextBox.Text
+    if nameInput == "" then notify("Enter a player's name!"); return end
+    local player = findPlayer(nameInput)
+    if not player then notify("Player not found!"); return end
+    targetPlayer = player
+    helperRunning = true
+    task.spawn(enterArena)
+end
+
+local function stopHelper()
+    helperRunning = false
+end
+
+Minimize.MouseButton1Click:Connect(function()
+    local minimized = TextBox.Visible == false
+    for _, child in ipairs(Frame:GetChildren()) do
+        if child ~= Title and child ~= Close and child ~= Minimize then
+            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") or child:IsA("Frame") then
+                child.Visible = minimized
+            end
+        end
+    end
+    Frame.Size = minimized and UDim2.new(0, 280, 0, 320) or UDim2.new(0, 280, 0, 30)
+end)
+
+Close.MouseButton1Click:Connect(function()
+    stopHelper()
+    if ScreenGui then ScreenGui:Destroy() end
+    getgenv().KsHelper_Loaded = nil
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+    if helperRunning and targetPlayer then
+        enterArena()
+    end
+end)
+
+Start.MouseButton1Click:Connect(startHelper)
+Stop.MouseButton1Click:Connect(stopHelper)
