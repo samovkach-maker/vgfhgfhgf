@@ -1,0 +1,204 @@
+--[[ Killstreak Helper с регулируемой дистанцией (1–200), без ресета, С ПОВОРОТОМ НА 180° ]]--
+
+local cloneref = cloneref or function(...) return ... end
+
+local sbPlaceIds = {
+    [6403373529] = true,
+    [11520107397] = true,
+    [124596094333302] = true,
+    [9015014224] = true,
+}
+
+if not sbPlaceIds[game.PlaceId] then
+    local MarketplaceService = cloneref(game:GetService("MarketplaceService"))
+    local gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name or "Unknown Game"
+    print("This script is for Slap Battles, but you are in " .. gameName)
+    return
+end
+
+if getgenv().KsHelper_Loaded then return end
+pcall(function() getgenv().KsHelper_Loaded = true end)
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local CoreGui = cloneref(game:GetService("CoreGui"))
+local StarterGui = cloneref(game:GetService("StarterGui"))
+local Players = cloneref(game:GetService("Players"))
+local LocalPlayer = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+
+local guiParent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui
+
+local function randomString()
+    local t = {}
+    for i = 1, math.random(10,20) do
+        t[i] = string.char(math.random(33,126))
+    end
+    return table.concat(t)
+end
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui", guiParent)
+ScreenGui.Name = randomString()
+ScreenGui.ResetOnSpawn = false
+
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0,260,0,240)
+Frame.Position = UDim2.new(0.5,-130,0.5,-120)
+Frame.BackgroundColor3 = Color3.fromRGB(36,36,37)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0,8)
+Instance.new("UIStroke", Frame).Color = Color3.fromRGB(60,60,60)
+
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1,-30,0,30)
+Title.Position = UDim2.new(0,25,0,0)
+Title.BackgroundTransparency = 1
+Title.Text = "Killstreak Helper"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.TextXAlignment = Left
+
+local Minimize = Instance.new("TextButton", Frame)
+Minimize.Size = UDim2.new(0,25,0,25)
+Minimize.Position = UDim2.new(1,-60,0,2)
+Minimize.Text = "_"
+Minimize.BackgroundColor3 = Color3.fromRGB(60,60,60)
+Minimize.TextColor3 = Color3.new(1,1,1)
+Minimize.Font = Enum.Font.GothamBold
+Minimize.TextSize = 18
+
+local Close = Instance.new("TextButton", Frame)
+Close.Size = UDim2.new(0,25,0,25)
+Close.Position = UDim2.new(1,-30,0,2)
+Close.Text = "X"
+Close.BackgroundColor3 = Color3.fromRGB(60,60,60)
+Close.TextColor3 = Color3.new(1,1,1)
+Close.Font = Enum.Font.GothamBold
+Close.TextSize = 14
+
+local TextBox = Instance.new("TextBox", Frame)
+TextBox.Position = UDim2.new(0.5,-100,0,40)
+TextBox.Size = UDim2.new(0,200,0,30)
+TextBox.PlaceholderText = "Player's name"
+TextBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+TextBox.TextColor3 = Color3.new(1,1,1)
+TextBox.Font = Enum.Font.Gotham
+TextBox.TextSize = 14
+
+-- Distance slider
+local DistanceLabel = Instance.new("TextLabel", Frame)
+DistanceLabel.Position = UDim2.new(0.5,-100,0,80)
+DistanceLabel.Size = UDim2.new(0,200,0,20)
+DistanceLabel.BackgroundTransparency = 1
+DistanceLabel.TextColor3 = Color3.new(1,1,1)
+DistanceLabel.Font = Enum.Font.GothamBold
+DistanceLabel.TextSize = 14
+DistanceLabel.Text = "Distance: 4"
+
+local SliderFrame = Instance.new("Frame", Frame)
+SliderFrame.Position = UDim2.new(0.5,-100,0,105)
+SliderFrame.Size = UDim2.new(0,200,0,6)
+SliderFrame.BackgroundColor3 = Color3.fromRGB(70,70,70)
+SliderFrame.BorderSizePixel = 0
+
+local Fill = Instance.new("Frame", SliderFrame)
+Fill.Size = UDim2.new(0.02,0,1,0)
+Fill.BackgroundColor3 = Color3.fromRGB(40,120,255)
+Fill.BorderSizePixel = 0
+
+local Knob = Instance.new("Frame", SliderFrame)
+Knob.Size = UDim2.new(0,10,0,10)
+Knob.Position = UDim2.new(0.02,-5,0.5,-5)
+Knob.BackgroundColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", Knob).CornerRadius = UDim.new(1,0)
+
+local followDistance = 4
+local dragging = false
+
+local function setDistance(x)
+    local r = math.clamp((x - SliderFrame.AbsolutePosition.X) / SliderFrame.AbsoluteSize.X, 0, 1)
+    followDistance = math.floor(r * 199) + 1
+    Fill.Size = UDim2.new(r,0,1,0)
+    Knob.Position = UDim2.new(r,-5,0.5,-5)
+    DistanceLabel.Text = "Distance: "..followDistance
+end
+
+Knob.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true end end)
+Knob.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
+UIS.InputChanged:Connect(function(i) if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then setDistance(i.Position.X) end end)
+
+local Start = Instance.new("TextButton", Frame)
+Start.Position = UDim2.new(0.5,-100,0,130)
+Start.Size = UDim2.new(0,90,0,30)
+Start.Text = "Start"
+Start.BackgroundColor3 = Color3.fromRGB(40,120,40)
+Start.TextColor3 = Color3.new(1,1,1)
+Start.Font = Enum.Font.GothamBold
+Start.TextSize = 14
+
+local Stop = Instance.new("TextButton", Frame)
+Stop.Position = UDim2.new(0.5,10,0,130)
+Stop.Size = UDim2.new(0,90,0,30)
+Stop.Text = "Stop"
+Stop.BackgroundColor3 = Color3.fromRGB(120,40,40)
+Stop.TextColor3 = Color3.new(1,1,1)
+Stop.Font = Enum.Font.GothamBold
+Stop.TextSize = 14
+
+-- Logic
+local helperRunning = false
+local targetPlayer
+
+local function findPlayer(name)
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p.Name:lower():find(name:lower()) or p.DisplayName:lower():find(name:lower()) then
+            return p
+        end
+    end
+end
+
+-- 🔥 ГЛАВНОЕ: СМОТРИМ В ЛИЦО ЦЕЛИ
+local function followTarget()
+    while helperRunning and targetPlayer do
+        local char = LocalPlayer.Character
+        local tChar = targetPlayer.Character
+        if char and tChar then
+            local root = char:FindFirstChild("HumanoidRootPart")
+            local tRoot = tChar:FindFirstChild("HumanoidRootPart")
+            local rag = char:FindFirstChild("Ragdolled")
+            if root and tRoot and not (rag and rag.Value) then
+                local pos = tRoot.Position - tRoot.CFrame.LookVector * followDistance
+                root.CFrame = CFrame.lookAt(pos, tRoot.Position)
+            end
+        end
+        task.wait()
+    end
+end
+
+local function startHelper()
+    local name = TextBox.Text
+    if name == "" then return end
+    local p = findPlayer(name)
+    if not p then return end
+    targetPlayer = p
+    helperRunning = true
+    task.spawn(followTarget)
+end
+
+local function stopHelper()
+    helperRunning = false
+end
+
+Start.MouseButton1Click:Connect(startHelper)
+Stop.MouseButton1Click:Connect(stopHelper)
+
+Close.MouseButton1Click:Connect(function()
+    stopHelper()
+    ScreenGui:Destroy()
+    getgenv().KsHelper_Loaded = nil
+end)
