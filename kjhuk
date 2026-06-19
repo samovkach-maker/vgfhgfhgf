@@ -1,0 +1,240 @@
+--[[ 
+  ДИАГНОСТИКА БАУНТИ С GUI-ЛОГОМ
+  Все данные выводятся в окно, можно копировать.
+--]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- СОЗДАНИЕ GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BountyDiagnosticGUI"
+ScreenGui.Parent = game.CoreGui
+
+-- Главное окно
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.BorderSizePixel = 2
+MainFrame.BorderColor3 = Color3.fromRGB(0, 200, 255)
+MainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
+MainFrame.Size = UDim2.new(0, 600, 0, 450)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.ClipsDescendants = false
+
+-- Заголовок
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(0, 50, 70)
+Title.Text = "ДИАГНОСТИКА БАУНТИ - ЛОГ"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextScaled = true
+Title.Font = Enum.Font.Bold
+
+-- Поле для логов (ScrollingFrame)
+local LogFrame = Instance.new("ScrollingFrame")
+LogFrame.Parent = MainFrame
+LogFrame.Position = UDim2.new(0, 10, 0, 40)
+LogFrame.Size = UDim2.new(1, -20, 0, 350)
+LogFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+LogFrame.BorderSizePixel = 1
+LogFrame.BorderColor3 = Color3.fromRGB(100, 100, 100)
+LogFrame.ScrollBarThickness = 10
+LogFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+LogFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+LogFrame.VerticalScrollBarPosition = Enum.VerticalScrollBarPosition.Right
+
+-- Лейбл для текста (внутри ScrollingFrame)
+local LogText = Instance.new("TextLabel")
+LogText.Parent = LogFrame
+LogText.Size = UDim2.new(1, -10, 0, 0) -- высота будет меняться
+LogText.BackgroundTransparency = 1
+LogText.Text = "=== ДИАГНОСТИКА ЗАПУЩЕНА ===\n"
+LogText.TextColor3 = Color3.fromRGB(0, 255, 200)
+LogText.TextXAlignment = Enum.TextXAlignment.Left
+LogText.TextYAlignment = Enum.TextYAlignment.Top
+LogText.TextWrapped = true
+LogText.Font = Enum.Font.Code
+LogText.TextSize = 12
+
+-- Функция добавления текста в лог
+local function AddLog(message)
+    LogText.Text = LogText.Text .. tostring(message) .. "\n"
+    -- Автоматический скролл вниз
+    LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
+end
+
+-- Кнопка "Копировать всё"
+local CopyButton = Instance.new("TextButton")
+CopyButton.Parent = MainFrame
+CopyButton.Position = UDim2.new(0, 10, 1, -40)
+CopyButton.Size = UDim2.new(0, 150, 0, 30)
+CopyButton.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
+CopyButton.Text = "КОПИРОВАТЬ ВСЁ"
+CopyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CopyButton.TextScaled = true
+CopyButton.Font = Enum.Font.Bold
+
+CopyButton.MouseButton1Click:Connect(function()
+    local clipboard = game:GetService("Clipboard")
+    clipboard:set(LogText.Text)
+    CopyButton.Text = "СКОПИРОВАНО!"
+    wait(1.5)
+    CopyButton.Text = "КОПИРОВАТЬ ВСЁ"
+end)
+
+-- Кнопка "Очистить"
+local ClearButton = Instance.new("TextButton")
+ClearButton.Parent = MainFrame
+ClearButton.Position = UDim2.new(0, 170, 1, -40)
+ClearButton.Size = UDim2.new(0, 100, 0, 30)
+ClearButton.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+ClearButton.Text = "ОЧИСТИТЬ"
+ClearButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ClearButton.TextScaled = true
+ClearButton.Font = Enum.Font.Bold
+
+ClearButton.MouseButton1Click:Connect(function()
+    LogText.Text = "=== ЛОГ ОЧИЩЕН ===\n"
+end)
+
+-- ЗАПОЛНЯЕМ ДИАГНОСТИКУ
+AddLog("=== ДИАГНОСТИКА БАУНТИ ЗАПУЩЕНА ===")
+
+-- 1. Поиск RemoteEvents
+AddLog("\n[1] ПРОВЕРКА REPLICATEDSTORAGE:")
+for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+        local line = "Найден Remote: " .. obj.Name .. " | Тип: " .. obj.ClassName
+        if string.find(obj.Name:lower(), "bounty") or string.find(obj.Name:lower(), "hit") or string.find(obj.Name:lower(), "kill") or string.find(obj.Name:lower(), "damage") then
+            line = line .. " <<< ПОДОЗРИТЕЛЬНЫЙ >>>"
+        end
+        AddLog(line)
+    end
+end
+
+-- 2. Поиск в _G
+AddLog("\n[2] ПРОВЕРКА ГЛОБАЛЬНЫХ ПЕРЕМЕННЫХ (_G):")
+local foundGlobal = false
+for k, v in pairs(_G) do
+    if type(k) == "string" then
+        if string.find(k:lower(), "bounty") or string.find(k:lower(), "hit") or string.find(k:lower(), "kill") or string.find(k:lower(), "damage") then
+            AddLog("_G." .. k .. " = " .. type(v))
+            foundGlobal = true
+        end
+    end
+end
+if not foundGlobal then
+    AddLog("Ничего подозрительного в _G не найдено.")
+end
+
+-- 3. Перехват RemoteEvent:FireServer
+AddLog("\n[3] УСТАНОВКА ХУКОВ НА FIRESERVER:")
+for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+    if obj:IsA("RemoteEvent") then
+        local oldFire = obj.FireServer
+        obj.FireServer = function(self, ...)
+            local args = {...}
+            AddLog(">> FireServer перехвачен: " .. obj.Name)
+            for i, arg in ipairs(args) do
+                AddLog("   arg[" .. i .. "] = " .. tostring(arg) .. " (" .. type(arg) .. ")")
+            end
+            return oldFire(self, ...)
+        end
+        AddLog("Хук установлен на " .. obj.Name)
+    end
+end
+
+-- 4. Отслеживание leaderstats
+AddLog("\n[4] ОТСЛЕЖИВАНИЕ LEADERSTATS:")
+for _, player in pairs(Players:GetPlayers()) do
+    local leaderstats = player:FindFirstChild("leaderstats")
+    if leaderstats then
+        for _, stat in pairs(leaderstats:GetChildren()) do
+            if string.find(stat.Name:lower(), "bounty") or string.find(stat.Name:lower(), "score") or string.find(stat.Name:lower(), "points") or string.find(stat.Name:lower(), "kill") then
+                AddLog("У " .. player.Name .. " найден stat: " .. stat.Name .. " = " .. tostring(stat.Value))
+                stat:GetPropertyChangedSignal("Value"):Connect(function()
+                    AddLog(">>> ИЗМЕНЕНИЕ: " .. player.Name .. " " .. stat.Name .. " = " .. stat.Value)
+                end)
+            end
+        end
+    end
+end
+
+-- 5. Отслеживание анимаций/инструментов
+AddLog("\n[5] ОТСЛЕЖИВАНИЕ УДАРОВ (инструменты/анимации):")
+local function trackCharacter(char)
+    if not char then return end
+    local humanoid = char:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid:GetPropertyChangedSignal("Animator"):Connect(function()
+            AddLog("Аниматор изменён у " .. char.Name)
+        end)
+    end
+    char.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then
+            AddLog("Взят инструмент: " .. child.Name)
+            child.ChildAdded:Connect(function(grandChild)
+                if grandChild:IsA("RemoteEvent") then
+                    AddLog("  В инструменте найден RemoteEvent: " .. grandChild.Name)
+                end
+            end)
+        end
+        if child:IsA("RemoteEvent") then
+            AddLog("В персонаже найден RemoteEvent: " .. child.Name)
+        end
+    end)
+end
+
+LocalPlayer.CharacterAdded:Connect(trackCharacter)
+if LocalPlayer.Character then trackCharacter(LocalPlayer.Character) end
+
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        player.CharacterAdded:Connect(trackCharacter)
+        if player.Character then trackCharacter(player.Character) end
+    end
+end
+
+-- 6. Отслеживание чата
+AddLog("\n[6] ОТСЛЕЖИВАНИЕ ЧАТА (скрытые сообщения):")
+local chat = game:GetService("Chat")
+if chat then
+    local oldSend = chat.SendMessageToServer
+    if oldSend then
+        chat.SendMessageToServer = function(self, message, ...)
+            AddLog("Отправлено в чат: " .. message)
+            return oldSend(self, message, ...)
+        end
+    end
+end
+
+-- 7. Проверка античита
+AddLog("\n[7] ПРОВЕРКА АНТИЧИТА:")
+local antiCheat = LocalPlayer.PlayerScripts:FindFirstChild("AntiCheat") or LocalPlayer.PlayerGui:FindFirstChild("AntiCheat")
+if antiCheat then
+    AddLog("Найден античит: " .. antiCheat.Name)
+else
+    AddLog("Античит не обнаружен.")
+end
+
+AddLog("\n=== ДИАГНОСТИКА ЗАВЕРШЕНА ===")
+AddLog("Теперь нанесите удар в игре - смотрите сюда.")
+AddLog("Все события будут показаны выше.")
+
+-- Подсказка по управлению
+local Hint = Instance.new("TextLabel")
+Hint.Parent = MainFrame
+Hint.Position = UDim2.new(0, 280, 1, -40)
+Hint.Size = UDim2.new(0, 300, 0, 30)
+Hint.BackgroundTransparency = 1
+Hint.Text = "Перетащите окно за заголовок"
+Hint.TextColor3 = Color3.fromRGB(150, 150, 150)
+Hint.TextSize = 12
+Hint.Font = Enum.Font.SourceSans
+
+AddLog("Готово. Ждём ваш удар...")
