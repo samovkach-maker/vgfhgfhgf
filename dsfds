@@ -1,0 +1,194 @@
+-- ПОЛУЧИТЬ ВСЕ МАШИНЫ (компактный GUI для телефона)
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+local results = ""
+local function log(msg)
+    results = results .. msg .. "\n"
+    output.Text = results
+    setclipboard(results)
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "CarHackGUI"
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 320, 0, 400)
+frame.Position = UDim2.new(0.5, -160, 0.5, -200)
+frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+frame.BorderSizePixel = 1
+frame.BorderColor3 = Color3.fromRGB(100, 100, 100)
+frame.Active = true
+frame.Parent = gui
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 25)
+titleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+titleBar.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -10, 1, 0)
+title.Position = UDim2.new(0, 5, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "🚗 ВСЕ МАШИНЫ БЕСПЛАТНО"
+title.TextColor3 = Color3.fromRGB(255, 200, 80)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 13
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = titleBar
+
+local output = Instance.new("TextLabel")
+output.Size = UDim2.new(0.95, 0, 0, 140)
+output.Position = UDim2.new(0.025, 0, 0, 28)
+output.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+output.Text = "Нажимай кнопки по порядку"
+output.TextColor3 = Color3.fromRGB(200, 200, 200)
+output.Font = Enum.Font.SourceSans
+output.TextSize = 11
+output.TextXAlignment = Enum.TextXAlignment.Left
+output.TextYAlignment = Enum.TextYAlignment.Top
+output.TextWrapped = true
+output.Parent = frame
+
+-- Создаём кнопки компактно
+local buttons = {
+    {"🔍 Сканировать эвенты", function()
+        log("=== ЭВЕНТЫ ===\n")
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            local n = obj.Name:lower()
+            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                if n:find("buy") or n:find("purchase") or n:find("cart") 
+                   or n:find("car") or n:find("vehicle") or n:find("unlock")
+                   or n:find("case") or n:find("crate") or n:find("chest")
+                   or n:find("open") or n:find("spin") or n:find("shop") then
+                    log(obj:GetFullName())
+                end
+            end
+        end
+    end},
+    {"🖱 Активировать ClickDetector", function()
+        log("=== CLICKDETECTOR ===\n")
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("ClickDetector") then
+                pcall(function() fireclickdetector(obj) end)
+            end
+        end
+        log("Готово")
+    end},
+    {"📦 Открыть ВСЕ кейсы", function()
+        log("=== КЕЙСЫ ===\n")
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            local n = obj.Name:lower()
+            if n:find("case") or n:find("crate") or n:find("chest") or n:find("open") then
+                if obj:IsA("RemoteEvent") then
+                    for i = 1, 5 do
+                        pcall(function() obj:FireServer() end)
+                        pcall(function() obj:FireServer(LocalPlayer) end)
+                        pcall(function() obj:FireServer("All") end)
+                        task.wait(0.02)
+                    end
+                    log(obj.Name .. " вызван")
+                elseif obj:IsA("RemoteFunction") then
+                    for i = 1, 5 do
+                        pcall(function() obj:InvokeServer() end)
+                        pcall(function() obj:InvokeServer("All") end)
+                        task.wait(0.02)
+                    end
+                    log(obj.Name .. " вызван")
+                end
+            end
+        end
+    end},
+    {"💰 Купить всё (0 руб)", function()
+        log("=== ПОКУПКА ===\n")
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            local n = obj.Name:lower()
+            if n:find("buy") or n:find("purchase") then
+                if obj:IsA("RemoteEvent") then
+                    pcall(function() obj:FireServer("All") end)
+                    pcall(function() obj:FireServer(0) end)
+                    pcall(function() obj:FireServer(-1) end)
+                    log(obj.Name .. " вызван")
+                elseif obj:IsA("RemoteFunction") then
+                    pcall(function() obj:InvokeServer("All") end)
+                    pcall(function() obj:InvokeServer(0) end)
+                    log(obj.Name .. " вызван")
+                end
+            end
+        end
+    end},
+    {"🌐 NETWORK функции", function()
+        log("=== NETWORK ===\n")
+        local net = ReplicatedStorage:FindFirstChild("_NETWORK")
+        if net then
+            for _, obj in pairs(net:GetDescendants()) do
+                if obj:IsA("RemoteFunction") then
+                    local ok, res = pcall(function() return obj:InvokeServer() end)
+                    if ok then log(obj.Name .. " = " .. tostring(res):sub(1,40)) end
+                end
+            end
+        end
+    end},
+    {"🎯 ProximityPrompt", function()
+        log("=== PROMPT ===\n")
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                pcall(function() fireproximityprompt(obj) end)
+            end
+        end
+        log("Готово")
+    end},
+    {"📋 Копировать", function()
+        setclipboard(results)
+        log("Скопировано!")
+    end},
+}
+
+local y = 170
+for _, btnData in ipairs(buttons) do
+    local btnText = btnData[1]
+    local btnFunc = btnData[2]
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.95, 0, 0, 26)
+    btn.Position = UDim2.new(0.025, 0, 0, y)
+    btn.BackgroundColor3 = Color3.fromRGB(80, 50, 0)
+    btn.Text = btnText
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 11
+    btn.Parent = frame
+    
+    btn.MouseButton1Click:Connect(function()
+        results = ""
+        btnFunc()
+        output.Text = results
+    end)
+    
+    y = y + 28
+end
+
+-- Перетаскивание
+local UIS = game:GetService("UserInputService")
+local dragging, dragStart, startPos = false, nil, nil
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true; dragStart = input.Position; startPos = frame.Position
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+
+print("ГОТОВО! Нажимай кнопки по порядку")
