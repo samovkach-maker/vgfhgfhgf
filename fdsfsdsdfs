@@ -1,0 +1,179 @@
+-- МЕГА-АНАЛИЗАТОР (одна кнопка, без ошибок)
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local text = "Нажми START\n"
+local gui = Instance.new("ScreenGui")
+gui.Name = "MegaGUI"
+gui.Parent = PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 350, 0, 400)
+frame.Position = UDim2.new(0.5, -175, 0.5, -200)
+frame.BackgroundColor3 = Color3.new(0.1,0.1,0.1)
+frame.Parent = gui
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -10, 0, 300)
+scroll.Position = UDim2.new(0, 5, 0, 5)
+scroll.BackgroundColor3 = Color3.new(0.15,0.15,0.15)
+scroll.CanvasSize = UDim2.new(0,0,0,1000)
+scroll.ScrollBarThickness = 6
+scroll.Parent = frame
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, 0, 0, 1000)
+label.BackgroundTransparency = 1
+label.TextColor3 = Color3.new(0.9,0.9,0.9)
+label.Font = Enum.Font.SourceSans
+label.TextSize = 13
+label.TextXAlignment = Enum.TextXAlignment.Left
+label.TextYAlignment = Enum.TextYAlignment.Top
+label.TextWrapped = true
+label.Text = text
+label.Parent = scroll
+
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0, 320, 0, 40)
+btn.Position = UDim2.new(0.5, -160, 0, 320)
+btn.Text = "START"
+btn.BackgroundColor3 = Color3.new(0.2,0.8,0.2)
+btn.Font = Enum.Font.SourceSansBold
+btn.TextSize = 16
+btn.Parent = frame
+
+local copyBtn = Instance.new("TextButton")
+copyBtn.Size = UDim2.new(0, 320, 0, 30)
+copyBtn.Position = UDim2.new(0.5, -160, 0, 365)
+copyBtn.Text = "COPY"
+copyBtn.BackgroundColor3 = Color3.new(0.2,0.2,0.8)
+copyBtn.Font = Enum.Font.SourceSansBold
+copyBtn.TextSize = 14
+copyBtn.Parent = frame
+
+local function addLine(msg)
+    text = text .. msg .. "\n"
+    label.Text = text
+    label.Size = UDim2.new(1, 0, 0, label.TextBounds.Y + 10)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, label.TextBounds.Y + 10)
+    scroll.CanvasPosition = Vector2.new(0, label.TextBounds.Y)
+end
+
+local function safeCall(func)
+    local ok, err = pcall(func)
+    if not ok then addLine("ОШИБКА: " .. tostring(err)) end
+end
+
+local function analyzeAll()
+    text = ""
+    addLine("=== МЕГА-АНАЛИЗ ===")
+    
+    -- 1. Remote Functions
+    addLine("\n[1] Remote Functions:")
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteFunction") then
+            local ok, res = pcall(function() return obj:InvokeServer() end)
+            if ok and res ~= nil then
+                local s = tostring(res)
+                if #s < 80 then addLine("  " .. obj.Name .. " = " .. s) end
+            end
+            task.wait(0.05)
+        end
+    end
+    
+    -- 2. Remote Events (names)
+    addLine("\n[2] Remote Events:")
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") then
+            addLine("  " .. obj:GetFullName())
+        end
+    end
+    
+    -- 3. ProximityPrompts / ClickDetectors
+    addLine("\n[3] ProximityPrompt:")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            addLine("  " .. obj.Parent:GetFullName())
+        end
+    end
+    addLine("\n[4] ClickDetector:")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ClickDetector") then
+            addLine("  " .. obj.Parent:GetFullName())
+        end
+    end
+    
+    -- 4. Player Data
+    addLine("\n[5] LocalPlayer Data:")
+    for _, child in pairs(LocalPlayer:GetChildren()) do
+        if child:IsA("IntValue") or child:IsA("StringValue") then
+            addLine("  " .. child.Name .. " = " .. tostring(child.Value))
+        elseif child:IsA("Folder") then
+            addLine("  " .. child.Name .. ":")
+            for _, sub in pairs(child:GetChildren()) do
+                pcall(function() addLine("    " .. sub.Name .. " = " .. tostring(sub.Value)) end)
+            end
+        end
+    end
+    
+    local ls = LocalPlayer:FindFirstChild("leaderstats")
+    if ls then
+        addLine("\n[6] Leaderstats:")
+        for _, stat in pairs(ls:GetChildren()) do
+            pcall(function() addLine("  " .. stat.Name .. " = " .. tostring(stat.Value)) end)
+        end
+    end
+    
+    -- 5. Workspace Values
+    addLine("\n[7] Workspace Values:")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("IntValue") or obj:IsA("StringValue") or obj:IsA("NumberValue") then
+            local v = "?"
+            pcall(function() v = tostring(obj.Value) end)
+            if #v < 40 then addLine("  " .. obj:GetFullName() .. " = " .. v) end
+        end
+    end
+    
+    -- 6. Carts in RS and Workspace
+    addLine("\n[8] Carts in ReplicatedStorage:")
+    local carts = ReplicatedStorage:FindFirstChild("Carts")
+    if carts then for _, c in pairs(carts:GetChildren()) do addLine("  " .. c.Name) end end
+    
+    addLine("\n[9] VehicleSeats on Map:")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("VehicleSeat") then addLine("  " .. obj.Parent:GetFullName()) end
+    end
+    
+    -- 7. Exploit attempt
+    addLine("\n[10] Exploit:")
+    local cs = LocalPlayer:FindFirstChild("CurrentSession")
+    if cs then cs.Value = 999999; addLine("  Money set to 999999") end
+    
+    local crates = Workspace:FindFirstChild("Crates")
+    if crates then
+        for _, obj in pairs(crates:GetDescendants()) do
+            if obj.Name == "Price" then obj.Value = 0 end
+        end
+        addLine("  Crate prices set to 0")
+    end
+    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            for i=1,5 do pcall(function() fireproximityprompt(obj) end) end
+        end
+    end
+    addLine("  Prompts activated")
+    
+    addLine("\n=== ГОТОВО ===")
+    setclipboard(text)
+end
+
+btn.MouseButton1Click:Connect(function()
+    task.spawn(analyzeAll)
+end)
+
+copyBtn.MouseButton1Click:Connect(function()
+    setclipboard(text)
+end)
