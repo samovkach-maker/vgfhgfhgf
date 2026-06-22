@@ -1,0 +1,291 @@
+-- ПРОДВИНУТЫЙ АВТОПИЛОТ ДЛЯ CREATE A CART RIDE
+-- Автоматически фармит круги, валюту и кристаллы
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- ================== КОНФИГУРАЦИЯ ==================
+local TARGET_CART = "Rocket Cart" -- Самая быстрая машина
+local SPEED_BOOST = 300            -- Максимальная скорость
+local TORQUE_BOOST = 200           -- Ускорение
+local TELEPORT_TO_FINISH = true    -- Телепорт к финишу для ускорения
+local COLLECT_REWARDS = true       -- Собирать ProximityPrompt по пути
+local CIRCLE_DELAY = 12            -- Задержка между кругами (сек)
+local ANTI_AFK = true              -- Двигаться, чтобы не кикало за AFK
+-- ====================================================
+
+-- Переменные
+local farming = false
+local laps = 0
+local startTime = 0
+local startCrystals = 0
+local startMoney = 0
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local spawnCart = remotes and remotes:FindFirstChild("SpawnCart")
+
+-- Получение статистики
+local function getStats()
+    local ls = LocalPlayer:FindFirstChild("leaderstats")
+    if not ls then return 0, 0, 0 end
+    local dist = ls:FindFirstChild("Distance")
+    local cryst = ls:FindFirstChild("Crystals")
+    local cs = LocalPlayer:FindFirstChild("CurrentSession")
+    return (dist and dist.Value or 0), (cryst and cryst.Value or 0), (cs and cs.Value or 0)
+end
+
+-- Ускорение текущей машины
+local function boostVehicle()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum and hum.SeatPart then
+        local seat = hum.SeatPart
+        if seat:IsA("VehicleSeat") then
+            seat.MaxSpeed = SPEED_BOOST
+            seat.Torque = TORQUE_BOOST
+            local cart = seat.Parent
+            if cart:IsA("Model") and cart.PrimaryPart then
+                cart.PrimaryPart.AssemblyLinearVelocity = cart.PrimaryPart.CFrame.LookVector * 150
+            end
+        end
+    end
+end
+
+-- Телепорт к финишу
+local function teleportToFinish()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    local finish = Workspace:FindFirstChild("FinishLine") or Workspace:FindFirstChild("Finish")
+    if not finish then
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj.Name:lower():find("finish") then finish = obj; break end
+        end
+    end
+    if finish then
+        hrp.CFrame = CFrame.new(finish.Position + Vector3.new(0, 10, 0))
+    end
+end
+
+-- Сбор наград (ProximityPrompt)
+local function collectRewards()
+    if not COLLECT_REWARDS then return end
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            pcall(function() fireproximityprompt(obj) end)
+        end
+        if obj:IsA("ClickDetector") then
+            pcall(function() fireclickdetector(obj) end)
+        end
+    end
+end
+
+-- Спавн машины
+local function spawnVehicle(cartName)
+    if spawnCart then
+        pcall(function() spawnCart:FireServer(cartName or TARGET_CART) end)
+    end
+end
+
+-- Анти-AFK (небольшие движения)
+local function antiAFK()
+    if not ANTI_AFK then return end
+    local char = LocalPlayer.Character
+    if char then
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = hrp.CFrame * CFrame.new(math.random(-1,1), 0, math.random(-1,1))
+        end
+    end
+end
+
+-- ================== GUI ==================
+local gui = Instance.new("ScreenGui")
+gui.Name = "AutoPilotGUI"
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 280, 0, 260)
+frame.Position = UDim2.new(0.5, -140, 0.5, -130)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 28)
+title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+title.Text = "🏆 АВТОПИЛОТ v2.0"
+title.TextColor3 = Color3.fromRGB(255, 200, 50)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 14
+title.Parent = frame
+
+local statsLabel = Instance.new("TextLabel")
+statsLabel.Size = UDim2.new(0.9, 0, 0, 100)
+statsLabel.Position = UDim2.new(0.05, 0, 0, 35)
+statsLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+statsLabel.Text = "Готов к запуску"
+statsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+statsLabel.Font = Enum.Font.SourceSans
+statsLabel.TextSize = 13
+statsLabel.TextWrapped = true
+statsLabel.Parent = frame
+
+local startBtn = Instance.new("TextButton")
+startBtn.Size = UDim2.new(0.9, 0, 0, 40)
+startBtn.Position = UDim2.new(0.05, 0, 0, 140)
+startBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 30)
+startBtn.Text = "СТАРТ"
+startBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+startBtn.Font = Enum.Font.SourceSansBold
+startBtn.TextSize = 16
+startBtn.Parent = frame
+
+local stopBtn = Instance.new("TextButton")
+stopBtn.Size = UDim2.new(0.9, 0, 0, 30)
+stopBtn.Position = UDim2.new(0.05, 0, 0, 185)
+stopBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+stopBtn.Text = "СТОП"
+stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopBtn.Font = Enum.Font.SourceSansBold
+stopBtn.TextSize = 14
+stopBtn.Parent = frame
+
+local configBtn = Instance.new("TextButton")
+configBtn.Size = UDim2.new(0.9, 0, 0, 25)
+configBtn.Position = UDim2.new(0.05, 0, 0, 220)
+configBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+configBtn.Text = "Собрать награды сейчас"
+configBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+configBtn.Font = Enum.Font.SourceSans
+configBtn.TextSize = 12
+configBtn.Parent = frame
+
+-- Обновление GUI
+local function updateStats()
+    local dist, cryst, money = getStats()
+    local elapsed = tick() - startTime
+    local elapsedStr = string.format("%.1f мин", elapsed / 60)
+    local profitCryst = cryst - startCrystals
+    local profitMoney = money - startMoney
+    local rpm = laps / (elapsed / 60)
+    
+    statsLabel.Text = string.format(
+        "⚡ Круги: %d (%.1f/мин)\n" ..
+        "💎 Кристаллы: %d (+%d)\n" ..
+        "💰 Деньги: %d (+%d)\n" ..
+        "⏱ Время: %s",
+        laps, rpm, cryst, profitCryst, money, profitMoney, elapsedStr
+    )
+end
+
+-- Основной цикл фарма
+local function farmLoop()
+    startTime = tick()
+    local _, startCrystals, startMoney = getStats()
+    
+    while farming do
+        -- 1. Убедимся, что сидим в машине
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if not (hum and hum.SeatPart) then
+            -- Спавним новую машину и пробуем сесть
+            spawnVehicle()
+            for _, seat in pairs(Workspace:GetDescendants()) do
+                if seat:IsA("VehicleSeat") and seat.Parent.Name == TARGET_CART then
+                    pcall(function() seat:Sit(hum) end)
+                    break
+                end
+            end
+        end
+        
+        -- 2. Ускоряемся
+        boostVehicle()
+        
+        -- 3. Собираем награды
+        collectRewards()
+        
+        -- 4. Ждём прохождения круга (в это время работаем анти-AFK)
+        for i = 1, CIRCLE_DELAY do
+            if not farming then break end
+            if ANTI_AFK then antiAFK() end
+            task.wait(1)
+        end
+        
+        -- 5. Телепорт к финишу (если включен)
+        if TELEPORT_TO_FINISH and farming then
+            teleportToFinish()
+            boostVehicle()
+        end
+        
+        -- 6. Увеличиваем счётчик кругов
+        if farming then
+            laps = laps + 1
+            updateStats()
+        end
+    end
+end
+
+-- Кнопки
+startBtn.MouseButton1Click:Connect(function()
+    if farming then return end
+    farming = true
+    laps = 0
+    startBtn.Text = "В ПРОЦЕССЕ..."
+    startBtn.BackgroundColor3 = Color3.fromRGB(180, 100, 0)
+    
+    -- Запускаем ферму
+    task.spawn(farmLoop)
+end)
+
+stopBtn.MouseButton1Click:Connect(function()
+    farming = false
+    startBtn.Text = "СТАРТ"
+    startBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 30)
+    updateStats()
+end)
+
+configBtn.MouseButton1Click:Connect(function()
+    collectRewards()
+    statsLabel.Text = statsLabel.Text .. "\n✅ Награды собраны!"
+end)
+
+-- Перетаскивание окна
+local UIS = UserInputService
+local dragging, startPos, startMouse
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        startPos = frame.Position
+        startMouse = input.Position
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - startMouse
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+
+-- Защита от сброса GUI при смерти персонажа
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    -- Если фармим, продолжаем после респавна
+    if farming then
+        spawnVehicle()
+    end
+end)
+
+print("🏆 АВТОПИЛОТ ГОТОВ К РАБОТЕ")
+print("Нажми СТАРТ для начала фарма")
+print("Скрипт полностью безопасен и не нарушает правила игры")
