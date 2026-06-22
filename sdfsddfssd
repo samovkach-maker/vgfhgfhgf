@@ -1,0 +1,120 @@
+-- ПОКУПКА КЕЙСОВ И UPGRADE С ВАЛЮТОЙ 999999
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local result = ""
+
+-- 1. Ставим валюту
+local cs = LocalPlayer:FindFirstChild("CurrentSession")
+if cs then
+    cs.Value = 999999
+    result = result .. "Валюта: " .. cs.Value .. "\n"
+end
+
+-- 2. Обнуляем цены и активируем кейсы
+local crates = Workspace:FindFirstChild("Crates")
+if crates then
+    result = result .. "\n--- ПОКУПКА КЕЙСОВ ---\n"
+    for _, obj in pairs(crates:GetDescendants()) do
+        if obj.Name == "Price" then
+            obj.Value = 0
+        end
+        if obj:IsA("ProximityPrompt") then
+            result = result .. "Покупаю: " .. obj.Parent.Name .. "\n"
+            for i = 1, 50 do
+                pcall(function() fireproximityprompt(obj) end)
+                task.wait(0.01)
+            end
+        end
+    end
+end
+
+-- 3. Жмём Upgrade кнопки в гараже
+result = result .. "\n--- UPGRADE В ГАРАЖЕ ---\n"
+local garage = PlayerGui:FindFirstChild("Garage")
+if garage then
+    for _, obj in pairs(garage:GetDescendants()) do
+        if obj:IsA("TextButton") and obj.Text == "Upgrade" then
+            result = result .. obj.Parent.Name .. ": жму 50 раз\n"
+            pcall(function()
+                local conns = getconnections(obj.MouseButton1Click)
+                for _, conn in ipairs(conns) do
+                    for i = 1, 50 do
+                        conn:Fire()
+                        task.wait(0.02)
+                    end
+                end
+            end)
+        end
+    end
+end
+
+-- 4. Жмём Upgrade в меню Upgrade
+local upgradeGui = PlayerGui:FindFirstChild("Upgrade")
+if upgradeGui then
+    result = result .. "\n--- UPGRADE МЕНЮ ---\n"
+    for _, obj in pairs(upgradeGui:GetDescendants()) do
+        if obj:IsA("TextButton") and obj.Text == "Upgrade" then
+            result = result .. "Кнопка Upgrade: жму 50 раз\n"
+            pcall(function()
+                local conns = getconnections(obj.MouseButton1Click)
+                for _, conn in ipairs(conns) do
+                    for i = 1, 50 do
+                        conn:Fire()
+                        task.wait(0.02)
+                    end
+                end
+            end)
+        end
+        -- Жмём на названия машин в Upgrade меню
+        if obj:IsA("TextButton") and obj.Text == "" then
+            local name = obj.Name
+            if name:find("Cart") or name == "Locomotive" then
+                result = result .. "Выбираю: " .. name .. "\n"
+                pcall(function()
+                    local conns = getconnections(obj.MouseButton1Click)
+                    for _, conn in ipairs(conns) do
+                        conn:Fire()
+                    end
+                end)
+            end
+        end
+    end
+end
+
+-- 5. Покупаем премиум машины через их ProximityPrompt
+result = result .. "\n--- ПОКУПКА ПРЕМИУМ МАШИН ---\n"
+local robuxArea = Workspace:FindFirstChild("Map")
+if robuxArea then
+    robuxArea = robuxArea:FindFirstChild("Robux Area")
+    if robuxArea then
+        for _, obj in pairs(robuxArea:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                result = result .. obj.Parent:GetFullName() .. "\n"
+                for i = 1, 50 do
+                    pcall(function() fireproximityprompt(obj) end)
+                    task.wait(0.01)
+                end
+            end
+        end
+    end
+end
+
+-- 6. UpdateStats чтобы сохранить
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+if remotes then
+    local updateStats = remotes:FindFirstChild("UpdateStats")
+    if updateStats then
+        pcall(function() updateStats:FireServer() end)
+    end
+    local enterGarage = remotes:FindFirstChild("EnterGarage")
+    if enterGarage then
+        pcall(function() enterGarage:FireServer() end)
+    end
+end
+
+result = result .. "\n✅ ПРОВЕРЬ ИНВЕНТАРЬ И ГАРАЖ!"
+setclipboard(result)
+print(result)
