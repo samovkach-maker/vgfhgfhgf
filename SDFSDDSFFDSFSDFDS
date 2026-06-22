@@ -1,0 +1,271 @@
+-- МЕГА-СКАНЕР: Полный анализ игры Create A Cart Ride
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Players = game:GetService("Players")
+
+local result = ""
+local function log(msg) result = result .. msg .. "\n" end
+
+log("=":rep(60))
+log("МЕГА-АНАЛИЗ CREATE A CART RIDE")
+log("=":rep(60))
+
+-- ========== 1. ВСЕ REMOTE EVENT / FUNCTION ==========
+log("\n[1] ВСЕ REMOTE ОБЪЕКТЫ")
+log("-":rep(40))
+local allRemotes = {}
+for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+        table.insert(allRemotes, obj)
+        log(obj.ClassName .. ": " .. obj:GetFullName())
+    end
+end
+
+-- ========== 2. ВЫЗОВ ВСЕХ REMOTE FUNCTION ==========
+log("\n[2] ВЫЗОВ ВСЕХ REMOTE FUNCTION")
+log("-":rep(40))
+for _, obj in ipairs(allRemotes) do
+    if obj:IsA("RemoteFunction") then
+        local ok, res = pcall(function()
+            local r = obj:InvokeServer()
+            return r
+        end)
+        if ok and res ~= nil then
+            local resStr = tostring(res)
+            if #resStr < 200 then
+                log(obj.Name .. " = " .. resStr)
+            else
+                log(obj.Name .. " = (слишком длинно: " .. #resStr .. " символов)")
+            end
+        end
+        task.wait(0.05)
+    end
+end
+
+-- ========== 3. ВЫЗОВ ВСЕХ REMOTE EVENT ==========
+log("\n[3] ВЫЗОВ ВСЕХ REMOTE EVENT")
+log("-":rep(40))
+for _, obj in ipairs(allRemotes) do
+    if obj:IsA("RemoteEvent") then
+        pcall(function() obj:FireServer() end)
+        pcall(function() obj:FireServer(LocalPlayer) end)
+        task.wait(0.02)
+    end
+end
+log("Все RemoteEvent вызваны")
+
+-- ========== 4. ВСЕ PROXIMITYPROMPT И CLICKDETECTOR ==========
+log("\n[4] ВСЕ PROXIMITYPROMPT И CLICKDETECTOR")
+log("-":rep(40))
+local prompts = {}
+local detectors = {}
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("ProximityPrompt") then
+        table.insert(prompts, obj)
+        log("ProximityPrompt: " .. obj.Parent:GetFullName())
+    end
+    if obj:IsA("ClickDetector") then
+        table.insert(detectors, obj)
+        log("ClickDetector: " .. obj.Parent:GetFullName())
+    end
+end
+
+-- ========== 5. АКТИВАЦИЯ ВСЕХ PROMPT И DETECTOR ==========
+log("\n[5] АКТИВАЦИЯ ВСЕХ ОБЪЕКТОВ")
+log("-":rep(40))
+for _, obj in ipairs(prompts) do
+    pcall(function() fireproximityprompt(obj) end)
+end
+for _, obj in ipairs(detectors) do
+    pcall(function() fireclickdetector(obj) end)
+end
+log("Активировано ProximityPrompt: " .. #prompts)
+log("Активировано ClickDetector: " .. #detectors)
+
+-- ========== 6. ВСЕ VALUE ОБЪЕКТЫ ==========
+log("\n[6] ВСЕ VALUE ОБЪЕКТЫ")
+log("-":rep(40))
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("IntValue") or obj:IsA("StringValue") or obj:IsA("NumberValue") then
+        local val = "?"
+        pcall(function() val = tostring(obj.Value) end)
+        if #val < 50 then
+            log(obj:GetFullName() .. " = " .. val)
+        end
+    end
+end
+
+-- ========== 7. ВСЕ ДЕТИ LOCALPLAYER ==========
+log("\n[7] ДЕТИ LOCALPLAYER")
+log("-":rep(40))
+for _, child in pairs(LocalPlayer:GetChildren()) do
+    log(child.Name .. " [" .. child.ClassName .. "]")
+    if child:IsA("Folder") then
+        for _, sub in pairs(child:GetChildren()) do
+            log("  " .. sub.Name .. " [" .. sub.ClassName .. "]")
+            if sub:IsA("IntValue") or sub:IsA("StringValue") then
+                log("    = " .. tostring(sub.Value))
+            end
+        end
+    end
+    if child:IsA("IntValue") or child:IsA("StringValue") then
+        log("  = " .. tostring(child.Value))
+    end
+end
+
+-- ========== 8. LEADERSTATS ==========
+log("\n[8] LEADERSTATS")
+log("-":rep(40))
+local ls = LocalPlayer:FindFirstChild("leaderstats")
+if ls then
+    for _, stat in pairs(ls:GetChildren()) do
+        log(stat.Name .. " = " .. tostring(stat.Value) .. " [" .. stat.ClassName .. "]")
+    end
+end
+
+-- ========== 9. PLAYERGUI АНАЛИЗ ==========
+log("\n[9] PLAYERGUI - ВСЕ КНОПКИ")
+log("-":rep(40))
+for _, gui in pairs(PlayerGui:GetChildren()) do
+    if gui:IsA("ScreenGui") then
+        log("GUI: " .. gui.Name)
+        for _, obj in pairs(gui:GetDescendants()) do
+            if obj:IsA("TextButton") then
+                log("  [BTN] " .. obj:GetFullName() .. " = '" .. obj.Text .. "'")
+            elseif obj:IsA("TextLabel") then
+                local t = obj.Text
+                if #t > 0 and #t < 30 then
+                    log("  [LBL] " .. obj.Name .. " = '" .. t .. "'")
+                end
+            elseif obj:IsA("TextBox") then
+                log("  [TXT] " .. obj.Name .. " = '" .. obj.Text .. "'")
+            end
+        end
+    end
+end
+
+-- ========== 10. REPLICATEDSTORAGE АНАЛИЗ ==========
+log("\n[10] REPLICATEDSTORAGE - МОДЕЛИ МАШИН")
+log("-":rep(40))
+local cartsFolder = ReplicatedStorage:FindFirstChild("Carts")
+if cartsFolder then
+    for _, cart in pairs(cartsFolder:GetChildren()) do
+        log(cart.Name .. " [" .. cart.ClassName .. "]")
+        -- Ищем скрипты внутри
+        for _, script in pairs(cart:GetDescendants()) do
+            if script:IsA("Script") or script:IsA("LocalScript") or script:IsA("ModuleScript") then
+                log("  СКРИПТ: " .. script.Name)
+            end
+        end
+    end
+end
+
+-- ========== 11. ПОПЫТКА МАНИПУЛЯЦИИ ==========
+log("\n[11] ПОПЫТКА МАНИПУЛЯЦИЙ")
+log("-":rep(40))
+
+-- CurrentSession
+local cs = LocalPlayer:FindFirstChild("CurrentSession")
+if cs then
+    log("CurrentSession было: " .. cs.Value)
+    cs.Value = 999999
+    log("CurrentSession стало: " .. cs.Value)
+end
+
+-- Цены кейсов
+local crates = Workspace:FindFirstChild("Crates")
+if crates then
+    for _, obj in pairs(crates:GetDescendants()) do
+        if obj.Name == "Price" and obj:IsA("IntValue") then
+            log(obj.Parent.Name .. " Price: " .. obj.Value .. " → 0")
+            obj.Value = 0
+        end
+    end
+end
+
+-- ========== 12. ПРОВЕРКА ПОСЛЕ МАНИПУЛЯЦИЙ ==========
+log("\n[12] ПРОВЕРКА ПОСЛЕ МАНИПУЛЯЦИЙ")
+log("-":rep(40))
+for _, obj in ipairs(prompts) do
+    for i = 1, 10 do
+        pcall(function() fireproximityprompt(obj) end)
+    end
+end
+log("Повторная активация завершена")
+
+-- ========== 13. ИЩЕМ ИНВЕНТАРЬ ==========
+log("\n[13] ПОИСК ИНВЕНТАРЯ")
+log("-":rep(40))
+for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+    local name = obj.Name:lower()
+    if name:find("inventory") or name:find("owned") or name:find("unlocked") or name:find("save") or name:find("data") then
+        log(obj:GetFullName() .. " [" .. obj.ClassName .. "]")
+    end
+end
+
+-- ========== 14. ВСЕ ПАПКИ WORKSPACE ==========
+log("\n[14] СТРУКТУРА WORKSPACE")
+log("-":rep(40))
+for _, child in pairs(Workspace:GetChildren()) do
+    log(child.Name .. " [" .. child.ClassName .. "]")
+    if child:IsA("Folder") or child:IsA("Model") then
+        for _, sub in pairs(child:GetChildren()) do
+            log("  " .. sub.Name .. " [" .. sub.ClassName .. "]")
+        end
+    end
+end
+
+-- ========== 15. ТЕСТ ВСЕХ UPGRADE СПОСОБОВ ==========
+log("\n[15] ТЕСТ ВСЕХ UPGRADE СПОСОБОВ")
+log("-":rep(40))
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+if remotes then
+    local upgradeFunc = remotes:FindFirstChild("Upgrade")
+    local enterUpgrade = remotes:FindFirstChild("enterUpgrade")
+    local exitUpgrade = remotes:FindFirstChild("exitUpgrade")
+    
+    if enterUpgrade then
+        pcall(function() enterUpgrade:FireServer() end)
+        log("enterUpgrade вызван")
+        task.wait(0.3)
+        
+        -- Пробуем все кнопки в Upgrade GUI
+        local upgradeGui = PlayerGui:FindFirstChild("Upgrade")
+        if upgradeGui then
+            for _, obj in pairs(upgradeGui:GetDescendants()) do
+                if obj:IsA("TextButton") then
+                    log("Кнопка: " .. obj.Name .. " = '" .. obj.Text .. "'")
+                end
+            end
+        end
+        
+        -- Вызываем Upgrade
+        if upgradeFunc then
+            local ok, res = pcall(function() return upgradeFunc:InvokeServer() end)
+            log("Upgrade(): " .. tostring(res))
+            ok, res = pcall(function() return upgradeFunc:InvokeServer(1) end)
+            log("Upgrade(1): " .. tostring(res))
+            ok, res = pcall(function() return upgradeFunc:InvokeServer("craft") end)
+            log("Upgrade(craft): " .. tostring(res))
+        end
+        
+        if exitUpgrade then
+            pcall(function() exitUpgrade:FireServer() end)
+        end
+    end
+end
+
+-- ========== 16. КОЛИЧЕСТВО МАШИН У ИГРОКА ==========
+log("\n[16] МАШИНЫ НА КАРТЕ")
+log("-":rep(40))
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("VehicleSeat") then
+        log("Машина: " .. obj.Parent:GetFullName())
+    end
+end
+
+setclipboard(result)
+print(result)
+print("\n✅ МЕГА-АНАЛИЗ ЗАВЕРШЁН! Вставь в блокнот.")
