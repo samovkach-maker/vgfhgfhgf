@@ -1,0 +1,67 @@
+-- ДИАГНОСТИКА БЕЗ ВЫЗОВОВ (не кикнет)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+local result = "=== БЕЗОПАСНАЯ ДИАГНОСТИКА ===\n\n"
+
+-- 1. ВСЕ RemoteEvent и RemoteFunction (только имена)
+result = result .. "--- ВСЕ REMOTE ---\n"
+for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+        result = result .. obj.ClassName .. ": " .. obj:GetFullName() .. "\n"
+    end
+end
+
+-- 2. Все папки и объекты связанные с машинами
+result = result .. "\n--- МАШИНЫ / КЕЙСЫ / МАГАЗИНЫ ---\n"
+local keywords = {"cart", "car", "crate", "shop", "vehicle", "garage", "skin", "case", "chest", "buy", "purchase"}
+for _, obj in pairs(Workspace:GetDescendants()) do
+    local n = obj.Name:lower()
+    for _, kw in ipairs(keywords) do
+        if n:find(kw) then
+            result = result .. obj.ClassName .. ": " .. obj:GetFullName() .. "\n"
+            break
+        end
+    end
+end
+
+-- 3. ClickDetector и ProximityPrompt
+result = result .. "\n--- CLICKDETECTOR ---\n"
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("ClickDetector") then
+        result = result .. obj.Parent:GetFullName() .. "\n"
+    end
+end
+
+result = result .. "\n--- PROXIMITYPROMPT ---\n"
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("ProximityPrompt") then
+        result = result .. obj.Parent:GetFullName() .. "\n"
+    end
+end
+
+-- 4. Value объекты
+result = result .. "\n--- VALUE ОБЪЕКТЫ ---\n"
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("IntValue") or obj:IsA("StringValue") or obj:IsA("NumberValue") then
+        local val = "?"
+        pcall(function() val = tostring(obj.Value) end)
+        if #val < 30 then
+            result = result .. obj:GetFullName() .. " = " .. val .. "\n"
+        end
+    end
+end
+
+-- 5. Дети LocalPlayer
+result = result .. "\n--- LOCALPLAYER ---\n"
+for _, child in pairs(LocalPlayer:GetChildren()) do
+    result = result .. child.Name .. " [" .. child.ClassName .. "]\n"
+    if child:IsA("IntValue") or child:IsA("StringValue") then
+        result = result .. "  = " .. tostring(child.Value) .. "\n"
+    end
+end
+
+setclipboard(result)
+print(result)
+print("\n✅ СКОПИРОВАНО! Не кикнет.")
