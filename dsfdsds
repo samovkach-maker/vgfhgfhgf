@@ -1,0 +1,88 @@
+-- ВСЕ МАШИНЫ ОДНОЙ КНОПКОЙ (для телефона)
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local function findAndCall(namePart)
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        local n = obj.Name:lower()
+        if n:find(namePart) then
+            if obj:IsA("RemoteEvent") then
+                pcall(function() obj:FireServer() end)
+                pcall(function() obj:FireServer(LocalPlayer) end)
+                pcall(function() obj:FireServer("All") end)
+                pcall(function() obj:FireServer(0) end)
+            elseif obj:IsA("RemoteFunction") then
+                pcall(function() obj:InvokeServer() end)
+                pcall(function() obj:InvokeServer("All") end)
+                pcall(function() obj:InvokeServer(0) end)
+            end
+        end
+    end
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "AllCarsGUI"
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+gui.ResetOnSpawn = false
+
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0, 250, 0, 60)
+btn.Position = UDim2.new(0.5, -125, 0.5, -30)
+btn.BackgroundColor3 = Color3.fromRGB(180, 80, 0)
+btn.Text = "ПОЛУЧИТЬ ВСЕ МАШИНЫ"
+btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+btn.Font = Enum.Font.SourceSansBold
+btn.TextSize = 16
+btn.Parent = gui
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(0, 250, 0, 30)
+status.Position = UDim2.new(0.5, -125, 0.5, 35)
+status.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+status.Text = "Нажми кнопку"
+status.TextColor3 = Color3.fromRGB(200, 200, 200)
+status.Font = Enum.Font.SourceSans
+status.TextSize = 13
+status.Parent = gui
+
+btn.MouseButton1Click:Connect(function()
+    status.Text = "Работаю..."
+    
+    -- 1. Открываем все кейсы
+    findAndCall("case")
+    findAndCall("crate")
+    findAndCall("chest")
+    findAndCall("open")
+    
+    -- 2. Покупаем всё
+    findAndCall("buy")
+    findAndCall("purchase")
+    findAndCall("unlock")
+    
+    -- 3. Активируем все ClickDetector
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ClickDetector") then
+            pcall(function() fireclickdetector(obj) end)
+        end
+        if obj:IsA("ProximityPrompt") then
+            pcall(function() fireproximityprompt(obj) end)
+        end
+    end
+    
+    -- 4. NETWORK функции
+    local net = ReplicatedStorage:FindFirstChild("_NETWORK")
+    if net then
+        for _, obj in pairs(net:GetDescendants()) do
+            if obj:IsA("RemoteFunction") then
+                pcall(function() obj:InvokeServer() end)
+            end
+        end
+    end
+    
+    status.Text = "Готово! Проверь машины"
+    print("Все методы выполнены!")
+end)
+
+print("Нажми кнопку ПОЛУЧИТЬ ВСЕ МАШИНЫ")
