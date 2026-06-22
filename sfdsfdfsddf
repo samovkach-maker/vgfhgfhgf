@@ -1,0 +1,75 @@
+-- Ищем ВСЕ валюты: Crystals, Gems, Coins и т.д.
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local result = "=== ПОИСК ВСЕХ ВАЛЮТ ===\n\n"
+
+-- 1. Все IntValue у LocalPlayer
+result = result .. "--- LOCALPLAYER INTVALUES ---\n"
+for _, child in pairs(LocalPlayer:GetChildren()) do
+    if child:IsA("IntValue") or child:IsA("NumberValue") then
+        result = result .. child.Name .. " = " .. child.Value .. "\n"
+    end
+end
+
+-- 2. Leaderstats
+result = result .. "\n--- LEADERSTATS ---\n"
+local ls = LocalPlayer:FindFirstChild("leaderstats")
+if ls then
+    for _, stat in pairs(ls:GetChildren()) do
+        pcall(function()
+            result = result .. stat.Name .. " = " .. tostring(stat.Value) .. " [" .. stat.ClassName .. "]\n"
+        end)
+    end
+end
+
+-- 3. Поиск по всем папкам игрока
+result = result .. "\n--- ВСЕ ДЕТИ LOCALPLAYER ---\n"
+for _, child in pairs(LocalPlayer:GetChildren()) do
+    result = result .. child.Name .. " [" .. child.ClassName .. "]"
+    if child:IsA("IntValue") or child:IsA("StringValue") or child:IsA("NumberValue") then
+        result = result .. " = " .. tostring(child.Value)
+    end
+    result = result .. "\n"
+    -- Внутри папок
+    if child:IsA("Folder") then
+        for _, sub in pairs(child:GetChildren()) do
+            result = result .. "  " .. sub.Name .. " [" .. sub.ClassName .. "]"
+            if sub:IsA("IntValue") or sub:IsA("StringValue") then
+                result = result .. " = " .. tostring(sub.Value)
+            end
+            result = result .. "\n"
+        end
+    end
+end
+
+-- 4. getMultipliers
+result = result .. "\n--- GETMULTIPLIERS ---\n"
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+if remotes then
+    local getMult = remotes:FindFirstChild("getMultipliers")
+    if getMult then
+        local ok, data = pcall(function() return getMult:InvokeServer() end)
+        if ok and data then
+            for k, v in pairs(data) do
+                result = result .. tostring(k) .. " = " .. tostring(v) .. " [" .. typeof(v) .. "]\n"
+            end
+        end
+    end
+end
+
+-- 5. Попытка установить Crystals через leaderstats
+if ls then
+    local crystals = ls:FindFirstChild("Crystals")
+    if crystals then
+        result = result .. "\n--- МЕНЯЮ CRYSTALS ---\n"
+        result = result .. "Было: " .. crystals.Value .. "\n"
+        crystals.Value = 999999
+        result = result .. "Стало: " .. crystals.Value .. "\n"
+    end
+end
+
+setclipboard(result)
+print(result)
+print("\nСкопировано в буфер!")
