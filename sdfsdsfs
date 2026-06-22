@@ -1,0 +1,119 @@
+-- СКРАФТИТЬ МАШИНЫ ЧЕРЕЗ UPGRADE МЕНЮ
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local result = ""
+
+-- 1. Ставим валюту
+local cs = LocalPlayer:FindFirstChild("CurrentSession")
+if cs then cs.Value = 999999 end
+
+-- 2. Спавним все доступные машины сначала
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+if remotes then
+    local spawnCart = remotes:FindFirstChild("SpawnCart")
+    if spawnCart then
+        result = result .. "Спавн машин для комбинации...\n"
+        local carts = {"Stone Cart", "Copper Cart", "Wood Cart", "Iron Cart", "Banana Cart", "RNG Cart"}
+        for _, cart in ipairs(carts) do
+            pcall(function() spawnCart:FireServer(cart) end)
+            task.wait(0.1)
+        end
+    end
+end
+
+-- 3. Заходим в Upgrade меню и пробуем скрафтить
+local upgradeGui = PlayerGui:FindFirstChild("Upgrade")
+if upgradeGui then
+    result = result .. "\n--- СКРАФТИТЬ ---\n"
+    
+    -- Находим все кнопки машин
+    local cartButtons = {}
+    for _, obj in pairs(upgradeGui:GetDescendants()) do
+        if obj:IsA("TextButton") and obj.Text == "" and obj.Name ~= "Cart" and obj.Name ~= "Upgrade" then
+            table.insert(cartButtons, obj)
+        end
+    end
+    
+    result = result .. "Доступно машин для крафта: " .. #cartButtons .. "\n"
+    for _, btn in ipairs(cartButtons) do
+        result = result .. "  " .. btn.Name .. "\n"
+    end
+    
+    -- Выбираем 4 машины для комбинации
+    if #cartButtons >= 4 then
+        result = result .. "\nВыбираю 4 машины...\n"
+        for i = 1, 4 do
+            if cartButtons[i] then
+                result = result .. "Выбрана: " .. cartButtons[i].Name .. "\n"
+                pcall(function()
+                    local conns = getconnections(cartButtons[i].MouseButton1Click)
+                    for _, conn in ipairs(conns) do
+                        conn:Fire()
+                    end
+                end)
+                task.wait(0.1)
+            end
+        end
+        
+        -- Жмём Upgrade
+        task.wait(0.3)
+        for _, obj in pairs(upgradeGui:GetDescendants()) do
+            if obj:IsA("TextButton") and obj.Text == "Upgrade" then
+                result = result .. "Жму UPGRADE!\n"
+                pcall(function()
+                    local conns = getconnections(obj.MouseButton1Click)
+                    for _, conn in ipairs(conns) do
+                        conn:Fire()
+                    end
+                end)
+            end
+        end
+    end
+end
+
+-- 4. enterUpgrade / exitUpgrade цикл для фарма
+if remotes then
+    local enterUpgrade = remotes:FindFirstChild("enterUpgrade")
+    local exitUpgrade = remotes:FindFirstChild("exitUpgrade")
+    local upgradeFunc = remotes:FindFirstChild("Upgrade")
+    
+    if enterUpgrade and exitUpgrade and upgradeFunc then
+        result = result .. "\n--- АВТО-КРАФТ ---\n"
+        for cycle = 1, 20 do
+            pcall(function() enterUpgrade:FireServer() end)
+            task.wait(0.1)
+            
+            -- Выбираем 4 случайные машины
+            pcall(function() upgradeFunc:InvokeServer("Stone Cart") end)
+            task.wait(0.05)
+            pcall(function() upgradeFunc:InvokeServer("Wood Cart") end)
+            task.wait(0.05)
+            pcall(function() upgradeFunc:InvokeServer("Iron Cart") end)
+            task.wait(0.05)
+            pcall(function() upgradeFunc:InvokeServer("Copper Cart") end)
+            task.wait(0.1)
+            
+            -- Апгрейд
+            pcall(function() upgradeFunc:InvokeServer("Upgrade") end)
+            task.wait(0.1)
+            
+            pcall(function() exitUpgrade:FireServer() end)
+            task.wait(0.1)
+        end
+        result = result .. "20 циклов крафта\n"
+    end
+end
+
+-- 5. UpdateStats сохранить
+if remotes then
+    local updateStats = remotes:FindFirstChild("UpdateStats")
+    if updateStats then
+        pcall(function() updateStats:FireServer() end)
+    end
+end
+
+result = result .. "\n✅ Проверь инвентарь!"
+setclipboard(result)
+print(result)
