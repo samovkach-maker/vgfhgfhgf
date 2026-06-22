@@ -1,0 +1,60 @@
+-- Полный цикл Upgrade: войти -> выбрать машину -> улучшить
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+
+local result = ""
+if not remotes then result = "Remotes not found" else
+    local enterUpgrade = remotes:FindFirstChild("enterUpgrade")
+    local exitUpgrade = remotes:FindFirstChild("exitUpgrade")
+    local upgradeFunc = remotes:FindFirstChild("Upgrade")
+
+    if not enterUpgrade or not upgradeFunc then
+        result = "enterUpgrade or Upgrade not found"
+    else
+        -- Входим
+        pcall(function() enterUpgrade:FireServer() end)
+        task.wait(0.3)
+
+        -- Ищем кнопку первой доступной машины в Upgrade GUI
+        local upgradeGui = PlayerGui:FindFirstChild("Upgrade")
+        if upgradeGui then
+            local cartButton = nil
+            for _, obj in pairs(upgradeGui:GetDescendants()) do
+                if obj:IsA("TextButton") and obj.Text == "" and obj.Name:find("Cart") then
+                    cartButton = obj
+                    break
+                end
+            end
+            if cartButton then
+                result = result .. "Выбрана кнопка: " .. cartButton.Name .. "\n"
+                -- Имитируем клик по ней
+                pcall(function()
+                    local conns = getconnections(cartButton.MouseButton1Click)
+                    for _, conn in ipairs(conns) do
+                        conn:Fire()
+                    end
+                end)
+                task.wait(0.2)
+
+                -- Теперь вызываем Upgrade
+                local ok, res = pcall(function() return upgradeFunc:InvokeServer() end)
+                if ok then
+                    result = result .. "Upgrade result: " .. tostring(res) .. "\n"
+                else
+                    result = result .. "Upgrade error: " .. tostring(res) .. "\n"
+                end
+            else
+                result = result .. "Не найдено кнопок машин в Upgrade GUI\n"
+            end
+        else
+            result = result .. "Upgrade GUI не найден\n"
+        end
+
+        -- Выходим
+        if exitUpgrade then pcall(function() exitUpgrade:FireServer() end) end
+    end
+end
+
+setclipboard(result)
+print(result)
