@@ -1,0 +1,70 @@
+-- Спавним 4 Stone Cart, затем пробуем Upgrade
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local result = ""
+
+if not remotes then result = "Remotes not found" else
+    local spawnCart = remotes:FindFirstChild("SpawnCart")
+    local enterUpgrade = remotes:FindFirstChild("enterUpgrade")
+    local exitUpgrade = remotes:FindFirstChild("exitUpgrade")
+    local upgradeFunc = remotes:FindFirstChild("Upgrade")
+
+    if not spawnCart or not enterUpgrade or not upgradeFunc then
+        result = "Not all remotes found"
+    else
+        -- Спавним 4 Stone Cart
+        for i=1,4 do
+            pcall(function() spawnCart:FireServer("Stone Cart") end)
+            task.wait(0.2)
+        end
+        result = result .. "4 Stone Cart заспавнены\n"
+        task.wait(1)
+
+        -- Входим в Upgrade
+        pcall(function() enterUpgrade:FireServer() end)
+        task.wait(0.5)
+
+        -- Ищем кнопку Stone Cart в Upgrade GUI
+        local upgradeGui = PlayerGui:FindFirstChild("Upgrade")
+        if upgradeGui then
+            local stoneBtn = nil
+            for _, obj in pairs(upgradeGui:GetDescendants()) do
+                if obj:IsA("TextButton") and obj.Name == "Stone Cart" then
+                    stoneBtn = obj
+                    break
+                end
+            end
+            if stoneBtn then
+                -- Нажимаем 4 раза (выбрать 4 штуки)
+                for i=1,4 do
+                    pcall(function()
+                        local conns = getconnections(stoneBtn.MouseButton1Click)
+                        for _, conn in ipairs(conns) do conn:Fire() end
+                    end)
+                    task.wait(0.1)
+                end
+                result = result .. "Stone Cart выбран 4 раза\n"
+                task.wait(0.3)
+
+                -- Вызываем Upgrade
+                local ok, res = pcall(function() return upgradeFunc:InvokeServer() end)
+                if ok then
+                    result = result .. "Upgrade: " .. tostring(res) .. "\n"
+                else
+                    result = result .. "Upgrade error: " .. tostring(res) .. "\n"
+                end
+            else
+                result = result .. "Кнопка Stone Cart не найдена в GUI\n"
+            end
+        else
+            result = result .. "Upgrade GUI не найден\n"
+        end
+
+        -- Выходим
+        if exitUpgrade then pcall(function() exitUpgrade:FireServer() end) end
+    end
+end
+
+setclipboard(result)
+print(result)
