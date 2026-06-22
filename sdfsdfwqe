@@ -1,0 +1,80 @@
+-- ПОЛУЧЕНИЕ МАШИН ЧЕРЕЗ КОДЫ И ПОДАРКИ
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+if not remotes then return end
+
+local result = ""
+
+-- 1. RedeemCode
+local redeemCode = remotes:FindFirstChild("RedeemCode")
+if redeemCode then
+    result = result .. "RedeemCode: пробую коды...\n"
+    local codes = {"RELEASE", "FREE", "CART", "GOD", "LASER", "ROCKET", "MYTHIC", 
+                   "LEGENDARY", "EPIC", "RARE", "UNCOMMON", "COMMON", "GARAGE",
+                   "UPDATE", "BOOST", "MONEY", "COINS", "CASH", "GEMS",
+                   "ADMIN", "OWNER", "DEV", "TEST", "ALLCARTS", "ALLCARS"}
+    for _, code in ipairs(codes) do
+        local ok, res = pcall(function() return redeemCode:InvokeServer(code) end)
+        if ok and res then
+            result = result .. "  Код " .. code .. ": " .. tostring(res) .. "\n"
+        end
+        task.wait(0.05)
+    end
+end
+
+-- 2. GetGiftData + ClaimGift
+local getGift = remotes:FindFirstChild("GetGiftData")
+local claimGift = remotes:FindFirstChild("ClaimGift")
+if getGift then
+    result = result .. "\nGetGiftData: получаю данные...\n"
+    local ok, data = pcall(function() return getGift:InvokeServer() end)
+    if ok and data then
+        result = result .. tostring(data) .. "\n"
+    end
+end
+if claimGift then
+    result = result .. "ClaimGift: пробую получить...\n"
+    pcall(function() claimGift:InvokeServer() end)
+    pcall(function() claimGift:InvokeServer("All") end)
+    pcall(function() claimGift:InvokeServer(1) end)
+end
+
+-- 3. DevProduct
+local devProduct = remotes:FindFirstChild("DevProduct")
+if devProduct then
+    result = result .. "\nDevProduct: вызываю...\n"
+    pcall(function() devProduct:FireServer() end)
+    pcall(function() devProduct:FireServer("All") end)
+    pcall(function() devProduct:FireServer("Carts") end)
+end
+
+-- 4. ddddd
+local ddddd = remotes:FindFirstChild("ddddd")
+if ddddd then
+    result = result .. "\nddddd: вызываю...\n"
+    pcall(function() ddddd:FireServer() end)
+    pcall(function() ddddd:FireServer("All") end)
+end
+
+-- 5. getMultipliers
+local getMult = remotes:FindFirstChild("getMultipliers")
+if getMult then
+    result = result .. "\ngetMultipliers: получаю...\n"
+    local ok, mult = pcall(function() return getMult:InvokeServer() end)
+    if ok then result = result .. tostring(mult) .. "\n" end
+end
+
+-- 6. Upgrade
+local upgrade = remotes:FindFirstChild("Upgrade")
+if upgrade then
+    result = result .. "\nUpgrade: вызываю...\n"
+    pcall(function() upgrade:InvokeServer() end)
+    pcall(function() upgrade:InvokeServer("Max") end)
+    pcall(function() upgrade:InvokeServer(100) end)
+end
+
+result = result .. "\nГОТОВО! Проверь инвентарь и галвное меню!"
+setclipboard(result)
+print(result)
