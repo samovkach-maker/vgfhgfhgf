@@ -1,0 +1,132 @@
+-- ОТКРЫТЬ КЕЙСЫ И МАШИНЫ НАПРЯМУЮ
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+local result = ""
+
+-- 1. Запускаем CrateHandler скрипты напрямую
+result = result .. "--- CRATE HANDLERS ---\n"
+local crates = Workspace:FindFirstChild("Crates")
+if crates then
+    for _, obj in pairs(crates:GetDescendants()) do
+        if obj.Name == "CrateHandler" and obj:IsA("Script") then
+            result = result .. obj.Parent.Name .. ": "
+            -- Пробуем вызвать скрипт через disabled/enabled
+            local wasDisabled = obj.Disabled
+            obj.Disabled = true
+            task.wait(0.05)
+            obj.Disabled = false
+            result = result .. "перезапущен\n"
+        end
+    end
+end
+
+-- 2. Телепорт к премиум машинам и попытка сесть
+result = result .. "\n--- ТЕЛЕПОРТ К МАШИНАМ ---\n"
+local char = LocalPlayer.Character
+if char then
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local carts = {
+            "God Cart",
+            "Laser Cart", 
+            "Rocket Cart",
+            "Star Cart",
+            "Family Cart"
+        }
+        
+        for _, cartName in ipairs(carts) do
+            local cart = Workspace:FindFirstChild(cartName)
+            if not cart then
+                -- Ищем в папках
+                for _, folder in ipairs({Workspace.Map, Workspace.Carts}) do
+                    if folder then
+                        cart = folder:FindFirstChild(cartName, true)
+                        if cart then break end
+                    end
+                end
+            end
+            
+            if cart then
+                result = result .. cartName .. ": найден\n"
+                -- Ищем VehicleSeat
+                local seat = cart:FindFirstChildOfClass("VehicleSeat")
+                if not seat then
+                    seat = cart:FindFirstChild("VehicleSeat", true)
+                end
+                
+                if seat then
+                    result = result .. "  VehicleSeat найден, телепорт...\n"
+                    hrp.CFrame = seat.CFrame + Vector3.new(0, 3, 0)
+                    task.wait(0.2)
+                    
+                    -- Пробуем сесть
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if hum then
+                        pcall(function() seat:Sit(hum) end)
+                        result = result .. "  Сел в " .. cartName .. "\n"
+                        task.wait(0.3)
+                        
+                        -- EnterGarage для сохранения
+                        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                        if remotes then
+                            local enterGarage = remotes:FindFirstChild("EnterGarage")
+                            if enterGarage then
+                                pcall(function() enterGarage:FireServer() end)
+                                result = result .. "  Гараж: сохранено\n"
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- 3. Пробуем открыть кейсы через RemoteEvent (CrateEffect с ценой 0)
+result = result .. "\n--- ОТКРЫТИЕ КЕЙСОВ ---\n"
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+if remotes then
+    local crateEffect = remotes:FindFirstChild("CrateEffect")
+    if crateEffect then
+        local types = {"Common", "Uncommon", "Rare", "Epic", "Legendary"}
+        for _, t in ipairs(types) do
+            for i = 1, 10 do
+                local ok, res = pcall(function() return crateEffect:InvokeServer(t) end)
+                if ok and res then
+                    result = result .. t .. ": " .. tostring(res) .. "\n"
+                end
+                task.wait(0.03)
+            end
+        end
+    end
+    
+    -- GarageUpgrade макс
+    local garageUpgrade = remotes:FindFirstChild("GarageUpgrade")
+    if garageUpgrade then
+        result = result .. "\nGarageUpgrade макс...\n"
+        for i = 1, 20 do
+            pcall(function() garageUpgrade:FireServer() end)
+            task.wait(0.05)
+        end
+    end
+end
+
+-- 4. Активируем ВСЕ ProximityPrompt с зажатием (долгое нажатие)
+result = result .. "\n--- ДОЛГОЕ НАЖАТИЕ PROMPT ---\n"
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("ProximityPrompt") then
+        local parentName = obj.Parent:GetFullName()
+        if parentName:find("Crate") or parentName:find("Cart") or parentName:find("Daily") then
+            for i = 1, 50 do
+                pcall(function() fireproximityprompt(obj) end)
+                task.wait(0.01)
+            end
+        end
+    end
+end
+
+result = result .. "\n✅ ГОТОВО! Проверь гараж"
+setclipboard(result)
+print(result)
