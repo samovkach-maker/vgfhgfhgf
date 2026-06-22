@@ -1,0 +1,145 @@
+-- ПОЛУЧИТЬ ВСЕ МАШИНЫ И КЕЙСЫ (активация ProximityPrompt)
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+local result = "=== ПОЛУЧЕНИЕ ВСЕХ МАШИН И КЕЙСОВ ===\n\n"
+
+-- 1. Активируем ВСЕ ProximityPrompt на кейсах
+result = result .. "--- КЕЙСЫ ---\n"
+local crates = Workspace:FindFirstChild("Crates")
+if crates then
+    for _, obj in pairs(crates:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            local parent = obj.Parent
+            result = result .. "Активирую: " .. parent:GetFullName() .. "\n"
+            for i = 1, 20 do
+                pcall(function() fireproximityprompt(obj) end)
+                task.wait(0.02)
+            end
+        end
+    end
+end
+
+-- 2. Активируем ProximityPrompt на премиум машинах
+result = result .. "\n--- ПРЕМИУМ МАШИНЫ ---\n"
+local robuxArea = Workspace:FindFirstChild("Map")
+if robuxArea then
+    robuxArea = robuxArea:FindFirstChild("Robux Area")
+    if robuxArea then
+        for _, obj in pairs(robuxArea:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                result = result .. "Активирую: " .. obj.Parent:GetFullName() .. "\n"
+                for i = 1, 30 do
+                    pcall(function() fireproximityprompt(obj) end)
+                    task.wait(0.02)
+                end
+            end
+        end
+    end
+end
+
+-- 3. Активируем Daily кейс
+result = result .. "\n--- DAILY КЕЙС ---\n"
+local daily = Workspace:FindFirstChild("Daily")
+if daily then
+    for _, obj in pairs(daily:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            result = result .. "Активирую: Daily\n"
+            for i = 1, 20 do
+                pcall(function() fireproximityprompt(obj) end)
+                task.wait(0.02)
+            end
+        end
+    end
+end
+
+-- 4. Активируем Race Cart
+result = result .. "\n--- RACE CART ---\n"
+local raceCart = Workspace:FindFirstChild("Race Cart")
+if raceCart then
+    for _, obj in pairs(raceCart:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            result = result .. "Активирую: Race Cart\n"
+            for i = 1, 20 do
+                pcall(function() fireproximityprompt(obj) end)
+                task.wait(0.02)
+            end
+        end
+    end
+end
+
+-- 5. Активируем Event Station и Warehouse
+result = result .. "\n--- EVENTS ---\n"
+local events = Workspace:FindFirstChild("Events")
+if events then
+    for _, obj in pairs(events:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            result = result .. "Активирую: " .. obj.Parent:GetFullName() .. "\n"
+            for i = 1, 10 do
+                pcall(function() fireproximityprompt(obj) end)
+                task.wait(0.02)
+            end
+        end
+        if obj:IsA("ClickDetector") then
+            result = result .. "ClickDetector: " .. obj.Parent:GetFullName() .. "\n"
+            for i = 1, 10 do
+                pcall(function() fireclickdetector(obj) end)
+                task.wait(0.02)
+            end
+        end
+    end
+end
+
+-- 6. Меняем цену кейсов на 0 и активируем снова
+result = result .. "\n--- ОБХОД ЦЕН ---\n"
+if crates then
+    for _, obj in pairs(crates:GetDescendants()) do
+        if obj.Name == "Price" and obj:IsA("IntValue") then
+            result = result .. obj.Parent.Name .. ": было " .. obj.Value
+            obj.Value = 0
+            result = result .. " → 0\n"
+        end
+    end
+end
+
+-- 7. Активируем кейсы снова (после обнуления цен)
+result = result .. "\n--- ПОВТОРНАЯ АКТИВАЦИЯ ---\n"
+if crates then
+    for _, obj in pairs(crates:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            for i = 1, 30 do
+                pcall(function() fireproximityprompt(obj) end)
+                task.wait(0.01)
+            end
+        end
+    end
+end
+
+-- 8. SpawnCart для получения машин в инвентарь
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+if remotes then
+    local spawnCart = remotes:FindFirstChild("SpawnCart")
+    if spawnCart then
+        result = result .. "\n--- СПАВН МАШИН ---\n"
+        local carts = {"God Cart", "Laser Cart", "Rocket Cart", "Star Cart", "Family Cart", "Default"}
+        for _, cart in ipairs(carts) do
+            for i = 1, 5 do
+                pcall(function() spawnCart:FireServer(cart) end)
+            end
+            result = result .. "Спавн: " .. cart .. "\n"
+            task.wait(0.05)
+        end
+    end
+    
+    -- EnterGarage чтобы сохранить
+    local enterGarage = remotes:FindFirstChild("EnterGarage")
+    if enterGarage then
+        result = result .. "\nЗахожу в гараж...\n"
+        pcall(function() enterGarage:FireServer() end)
+    end
+end
+
+result = result .. "\n✅ ГОТОВО! Проверь гараж и инвентарь!"
+setclipboard(result)
+print(result)
