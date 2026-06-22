@@ -1,0 +1,72 @@
+-- АНАЛИЗ И АБУЗ ПОДАРКОВ (GIFTS)
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local result = ""
+
+-- 1. Текущее состояние
+local claimedGifts = LocalPlayer:FindFirstChild("ClaimedGifts")
+local loadedGifts = LocalPlayer:FindFirstChild("LoadedGifts")
+
+result = result .. "=== СОСТОЯНИЕ ПОДАРКОВ ===\n"
+if claimedGifts then
+    result = result .. "ClaimedGifts дети:\n"
+    for _, child in pairs(claimedGifts:GetChildren()) do
+        result = result .. "  " .. child.Name .. " [" .. child.ClassName .. "]"
+        if child:IsA("ObjectValue") then
+            result = result .. " -> " .. tostring(child.Value)
+        elseif child:IsA("IntValue") then
+            result = result .. " = " .. child.Value
+        end
+        result = result .. "\n"
+    end
+else
+    result = result .. "ClaimedGifts не найдены\n"
+end
+
+if loadedGifts then
+    result = result .. "LoadedGifts: " .. tostring(loadedGifts.Value) .. "\n"
+end
+
+-- 2. GetGiftData
+local getGiftData = remotes:FindFirstChild("GetGiftData")
+if getGiftData then
+    local ok, data = pcall(function() return getGiftData:InvokeServer() end)
+    result = result .. "GetGiftData: " .. (ok and tostring(data) or "error") .. "\n"
+end
+
+-- 3. ClaimGift с разными аргументами
+local claimGift = remotes:FindFirstChild("ClaimGift")
+if claimGift then
+    result = result .. "\n=== ТЕСТ CLAIMGIFT ===\n"
+    -- пробуем без аргументов
+    local ok, res = pcall(function() return claimGift:InvokeServer() end)
+    result = result .. "Без аргументов: " .. tostring(res) .. "\n"
+    
+    -- пробуем с номером дня (1,2,3...)
+    for day = 1, 7 do
+        ok, res = pcall(function() return claimGift:InvokeServer(day) end)
+        result = result .. "День " .. day .. ": " .. tostring(res) .. "\n"
+        task.wait(0.05)
+    end
+end
+
+-- 4. Очистка ClaimedGifts и повтор
+result = result .. "\n=== ПОПЫТКА СБРОСА ==="
+if claimedGifts then
+    -- удаляем все записи о полученных подарках
+    for _, child in pairs(claimedGifts:GetChildren()) do
+        child:Destroy()
+        result = result .. "\nУдалён: " .. child.Name
+    end
+    result = result .. "\nClaimedGifts очищены"
+    
+    -- пробуем снова забрать подарок
+    if claimGift then
+        local ok, res = pcall(function() return claimGift:InvokeServer() end)
+        result = result .. "\nClaimGift после очистки: " .. tostring(res)
+    end
+end
+
+setclipboard(result)
+print(result)
