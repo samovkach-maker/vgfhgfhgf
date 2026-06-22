@@ -1,0 +1,271 @@
+-- МЕГА-АНАЛИЗАТОР (исправленный GUI)
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local collectedData = "Нажмите кнопки для анализа...\n"
+local function addLine(msg) collectedData = collectedData .. msg .. "\n" end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "MegaAnalyzer"
+gui.Parent = PlayerGui
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 380, 0, 500)
+frame.Position = UDim2.new(0.5, -190, 0.5, -250)
+frame.BackgroundColor3 = Color3.fromRGB(10,10,10)
+frame.BorderSizePixel = 1
+frame.BorderColor3 = Color3.fromRGB(100,100,100)
+frame.Active = true
+frame.ClipsDescendants = true
+frame.Parent = gui
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1,0,0,30)
+titleBar.BackgroundColor3 = Color3.fromRGB(25,25,25)
+titleBar.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,-120,1,0)
+title.Position = UDim2.new(0,10,0,0)
+title.BackgroundTransparency = 1
+title.Text = "МЕГА-АНАЛИЗАТОР"
+title.TextColor3 = Color3.fromRGB(255,200,50)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 14
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = titleBar
+
+local copyBtn = Instance.new("TextButton")
+copyBtn.Size = UDim2.new(0,50,0,24)
+copyBtn.Position = UDim2.new(1,-55,0,3)
+copyBtn.BackgroundColor3 = Color3.fromRGB(40,40,140)
+copyBtn.Text = "COPY"
+copyBtn.TextColor3 = Color3.white
+copyBtn.Font = Enum.Font.SourceSansBold
+copyBtn.TextSize = 10
+copyBtn.Parent = titleBar
+copyBtn.MouseButton1Click:Connect(function()
+    setclipboard(collectedData)
+end)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0,50,0,24)
+closeBtn.Position = UDim2.new(1,-110,0,3)
+closeBtn.BackgroundColor3 = Color3.fromRGB(180,40,40)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.white
+closeBtn.Font = Enum.Font.SourceSansBold
+closeBtn.TextSize = 14
+closeBtn.Parent = titleBar
+closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+-- Область вывода
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1,0,0,350)
+scroll.Position = UDim2.new(0,0,0,30)
+scroll.BackgroundColor3 = Color3.fromRGB(15,15,15)
+scroll.BorderSizePixel = 0
+scroll.CanvasSize = UDim2.new(0,0,0,10000)
+scroll.ScrollBarThickness = 8
+scroll.Parent = frame
+
+local output = Instance.new("TextLabel")
+output.Size = UDim2.new(1,-10,0,10000)
+output.Position = UDim2.new(0,5,0,0)
+output.BackgroundTransparency = 1
+output.Text = collectedData
+output.TextColor3 = Color3.fromRGB(200,200,200)
+output.Font = Enum.Font.SourceSans
+output.TextSize = 12
+output.TextXAlignment = Enum.TextXAlignment.Left
+output.TextYAlignment = Enum.TextYAlignment.Top
+output.TextWrapped = true
+output.Parent = scroll
+
+local function updateText()
+    output.Text = collectedData
+    -- Прокрутка вниз
+    scroll.CanvasSize = UDim2.new(0,0,0,output.TextBounds.Y + 20)
+    scroll.CanvasPosition = Vector2.new(0, math.max(0, output.TextBounds.Y - 350))
+end
+
+-- Панель кнопок
+local btnPanel = Instance.new("Frame")
+btnPanel.Size = UDim2.new(1,0,0,115)
+btnPanel.Position = UDim2.new(0,0,0,383)
+btnPanel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+btnPanel.Parent = frame
+
+local function makeButton(text, posX, posY, sizeX, sizeY, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,sizeX,0,sizeY)
+    btn.Position = UDim2.new(0,posX,0,posY)
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.Text = text
+    btn.TextColor3 = Color3.white
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 11
+    btn.Parent = btnPanel
+    btn.MouseButton1Click:Connect(function()
+        collectedData = ""
+        pcall(callback)
+        updateText()
+    end)
+    return btn
+end
+
+-- Функции сбора данных с защитой от ошибок
+local function analyzeRemoteFunctions()
+    addLine("=== REMOTE FUNCTIONS ===")
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteFunction") then
+            local ok, res = pcall(function() return obj:InvokeServer() end)
+            if ok and res ~= nil then
+                local s = tostring(res)
+                if #s < 100 then addLine(obj.Name .. " = " .. s) end
+            end
+            task.wait(0.05)
+        end
+    end
+end
+
+local function analyzeRemoteEvents()
+    addLine("=== REMOTE EVENTS ===")
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") then
+            addLine(obj:GetFullName())
+        end
+    end
+end
+
+local function analyzeWorkspace()
+    addLine("=== СТРУКТУРА WORKSPACE ===")
+    for _, child in pairs(Workspace:GetChildren()) do
+        addLine(child.Name .. " [" .. child.ClassName .. "]")
+    end
+    addLine("\n=== PROXIMITYPROMPT ===")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            addLine(obj.Parent:GetFullName())
+        end
+    end
+    addLine("\n=== CLICKDETECTOR ===")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ClickDetector") then
+            addLine(obj.Parent:GetFullName())
+        end
+    end
+end
+
+local function analyzePlayer()
+    addLine("=== LOCALPLAYER ===")
+    for _, child in pairs(LocalPlayer:GetChildren()) do
+        if child:IsA("IntValue") or child:IsA("StringValue") then
+            addLine(child.Name .. " = " .. tostring(child.Value))
+        elseif child:IsA("Folder") then
+            addLine(child.Name .. " (Folder):")
+            for _, sub in pairs(child:GetChildren()) do
+                pcall(function() addLine("  " .. sub.Name .. " = " .. tostring(sub.Value)) end)
+            end
+        end
+    end
+    local ls = LocalPlayer:FindFirstChild("leaderstats")
+    if ls then
+        addLine("\n=== LEADERSTATS ===")
+        for _, stat in pairs(ls:GetChildren()) do
+            pcall(function() addLine(stat.Name .. " = " .. tostring(stat.Value)) end)
+        end
+    end
+end
+
+local function analyzeValues()
+    addLine("=== VALUE ОБЪЕКТЫ В WORKSPACE ===")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("IntValue") or obj:IsA("StringValue") or obj:IsA("NumberValue") then
+            local v = "?"
+            pcall(function() v = tostring(obj.Value) end)
+            if #v < 40 then
+                addLine(obj:GetFullName() .. " = " .. v)
+            end
+        end
+    end
+end
+
+local function analyzeCarts()
+    addLine("=== МАШИНЫ В REPLICATED STORAGE ===")
+    local carts = ReplicatedStorage:FindFirstChild("Carts")
+    if carts then
+        for _, cart in pairs(carts:GetChildren()) do
+            addLine(cart.Name)
+        end
+    end
+    addLine("\n=== МАШИНЫ НА КАРТЕ (VehicleSeat) ===")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("VehicleSeat") then
+            addLine(obj.Parent:GetFullName())
+        end
+    end
+end
+
+local function tryExploit()
+    addLine("=== ПОПЫТКА ЭКСПЛОЙТА ===")
+    local cs = LocalPlayer:FindFirstChild("CurrentSession")
+    if cs then
+        addLine("CurrentSession было: " .. cs.Value)
+        cs.Value = 999999
+        addLine("CurrentSession стало: " .. cs.Value)
+    end
+    local crates = Workspace:FindFirstChild("Crates")
+    if crates then
+        for _, obj in pairs(crates:GetDescendants()) do
+            if obj.Name == "Price" and obj:IsA("IntValue") then
+                addLine(obj.Parent.Name .. " цена: " .. obj.Value .. " -> 0")
+                obj.Value = 0
+            end
+        end
+    end
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            for i = 1, 10 do
+                pcall(function() fireproximityprompt(obj) end)
+            end
+        end
+    end
+    addLine("Попытка завершена. Проверь инвентарь.")
+end
+
+-- Создаём кнопки
+makeButton("1. Remote Functions", 5, 5, 180, 30, analyzeRemoteFunctions)
+makeButton("2. Remote Events", 190, 5, 180, 30, analyzeRemoteEvents)
+makeButton("3. Workspace", 5, 38, 180, 30, analyzeWorkspace)
+makeButton("4. Player Data", 190, 38, 180, 30, analyzePlayer)
+makeButton("5. Values", 5, 71, 180, 30, analyzeValues)
+makeButton("6. Carts", 190, 71, 180, 30, analyzeCarts)
+makeButton("7. EXPLOIT", 5, 104, 370, 30, tryExploit)
+
+-- Перетаскивание
+local UIS = game:GetService("UserInputService")
+local dragging, startPos, startMouse
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        startPos = frame.Position
+        startMouse = input.Position
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - startMouse
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+
+updateText()
+print("МЕГА-АНАЛИЗАТОР ЗАПУЩЕН")
