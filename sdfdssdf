@@ -1,0 +1,257 @@
+-- ПОЛУЧИТЬ ВСЕ МАШИНЫ: ПОКУПКА + КЕЙСЫ
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+local results = ""
+local function log(msg)
+    results = results .. msg .. "\n"
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "CarUnlockGUI"
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 350, 0, 450)
+frame.Position = UDim2.new(0.5, -175, 0.5, -225)
+frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+frame.BorderSizePixel = 1
+frame.BorderColor3 = Color3.fromRGB(100, 100, 100)
+frame.ClipsDescendants = true
+frame.Active = true
+frame.Parent = gui
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 28)
+titleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+titleBar.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -10, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "РАЗБЛОКИРОВКА ВСЕХ МАШИН"
+title.TextColor3 = Color3.fromRGB(255, 200, 80)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 13
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = titleBar
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, 0, 0, 330)
+scroll.Position = UDim2.new(0, 0, 0, 28)
+scroll.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+scroll.BorderSizePixel = 0
+scroll.CanvasSize = UDim2.new(0, 0, 0, 8000)
+scroll.ScrollBarThickness = 6
+scroll.Parent = frame
+
+local output = Instance.new("TextLabel")
+output.Size = UDim2.new(1, -10, 0, 8000)
+output.Position = UDim2.new(0, 5, 0, 0)
+output.BackgroundTransparency = 1
+output.Text = "Нажми кнопки ниже"
+output.TextColor3 = Color3.fromRGB(200, 200, 200)
+output.Font = Enum.Font.SourceSans
+output.TextSize = 12
+output.TextXAlignment = Enum.TextXAlignment.Left
+output.TextYAlignment = Enum.TextYAlignment.Top
+output.TextWrapped = true
+output.Parent = scroll
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(0.9, 0, 0, 20)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 363)
+statusLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+statusLabel.Text = "Готов"
+statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+statusLabel.Font = Enum.Font.SourceSans
+statusLabel.TextSize = 11
+statusLabel.Parent = frame
+
+-- Кнопки тестов
+local tests = {
+    {"Сканировать ВСЕ эвенты", function()
+        log("=== СКАНИРОВАНИЕ ЭВЕНТОВ ===\n")
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            local name = obj.Name:lower()
+            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                if name:find("buy") or name:find("purchase") or name:find("cart") 
+                   or name:find("car") or name:find("vehicle") or name:find("unlock")
+                   or name:find("case") or name:find("crate") or name:find("chest")
+                   or name:find("open") or name:find("spin") or name:find("roll")
+                   or name:find("shop") or name:find("gamepass") or name:find("product") then
+                    log("Найден: " .. obj:GetFullName() .. " [" .. obj.ClassName .. "]")
+                end
+            end
+        end
+    end},
+    
+    {"Активировать ВСЕ ClickDetector", function()
+        log("=== АКТИВАЦИЯ CLICKDETECTOR ===\n")
+        local count = 0
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("ClickDetector") then
+                local parent = obj.Parent
+                local parentName = parent and parent.Name or "?"
+                if parentName:lower():find("buy") or parentName:lower():find("shop")
+                   or parentName:lower():find("case") or parentName:lower():find("crate")
+                   or parentName:lower():find("car") or parentName:lower():find("cart")
+                   or parentName:lower():find("unlock") or parentName:lower():find("purchase") then
+                    log("ClickDetector: " .. parent:GetFullName())
+                    for i = 1, 5 do
+                        pcall(function() fireclickdetector(obj) end)
+                        task.wait(0.05)
+                    end
+                    count = count + 1
+                end
+            end
+        end
+        log("Активировано: " .. count)
+    end},
+    
+    {"Активировать ВСЕ ProximityPrompt", function()
+        log("=== АКТИВАЦИЯ PROXIMITYPROMPT ===\n")
+        local count = 0
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                pcall(function() fireproximityprompt(obj) end)
+                count = count + 1
+            end
+        end
+        log("Активировано: " .. count)
+    end},
+    
+    {"Открыть ВСЕ кейсы (прямой вызов)", function()
+        log("=== ПОПЫТКА ОТКРЫТЬ КЕЙСЫ ===\n")
+        local caseFuncs = {"OpenCase", "OpenCrate", "OpenChest", "SpinCase", "RollCase", "UnlockCase", "Open"}
+        for _, funcName in ipairs(caseFuncs) do
+            for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+                if obj.Name == funcName then
+                    log("Вызываю: " .. obj:GetFullName())
+                    if obj:IsA("RemoteEvent") then
+                        for i = 1, 10 do
+                            pcall(function() obj:FireServer() end)
+                            pcall(function() obj:FireServer(LocalPlayer) end)
+                            pcall(function() obj:FireServer("All") end)
+                            pcall(function() obj:FireServer(1) end)
+                            pcall(function() obj:FireServer(100) end)
+                            task.wait(0.03)
+                        end
+                    elseif obj:IsA("RemoteFunction") then
+                        for i = 1, 10 do
+                            pcall(function() obj:InvokeServer() end)
+                            pcall(function() obj:InvokeServer("All") end)
+                            pcall(function() obj:InvokeServer(100) end)
+                            task.wait(0.03)
+                        end
+                    end
+                end
+            end
+        end
+    end},
+    
+    {"Попытка покупки без робуксов", function()
+        log("=== ПОПЫТКА ПОКУПКИ ===\n")
+        local buyFuncs = {"BuyItem", "PurchaseItem", "BuyCart", "BuyCar", "BuyVehicle", "Purchase", "Buy", "ShopBuy"}
+        for _, funcName in ipairs(buyFuncs) do
+            for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+                if obj.Name == funcName then
+                    log("Вызываю: " .. obj:GetFullName())
+                    if obj:IsA("RemoteEvent") then
+                        pcall(function() obj:FireServer("All") end)
+                        pcall(function() obj:FireServer(0) end)
+                        pcall(function() obj:FireServer(-1) end)
+                        pcall(function() obj:FireServer(nil) end)
+                    elseif obj:IsA("RemoteFunction") then
+                        pcall(function() obj:InvokeServer("All") end)
+                        pcall(function() obj:InvokeServer(0) end)
+                        pcall(function() obj:InvokeServer(-1) end)
+                    end
+                end
+            end
+        end
+    end},
+    
+    {"Проверить _NETWORK функции", function()
+        log("=== NETWORK ФУНКЦИИ ===\n")
+        local network = ReplicatedStorage:FindFirstChild("_NETWORK")
+        if network then
+            for _, obj in pairs(network:GetDescendants()) do
+                if obj:IsA("RemoteFunction") then
+                    local success, result = pcall(function() return obj:InvokeServer() end)
+                    if success then
+                        log(obj.Name .. " = " .. tostring(result):sub(1, 50))
+                    end
+                end
+            end
+        end
+    end},
+}
+
+local yPos = 370
+for _, testData in ipairs(tests) do
+    local name = testData[1]
+    local func = testData[2]
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 30)
+    btn.Position = UDim2.new(0.05, 0, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(100, 60, 0)
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 11
+    btn.Parent = frame
+    
+    btn.MouseButton1Click:Connect(function()
+        results = ""
+        func()
+        output.Text = results
+        setclipboard(results)
+        statusLabel.Text = "Готово | " .. name
+    end)
+    
+    yPos = yPos + 33
+end
+
+local copyBtn = Instance.new("TextButton")
+copyBtn.Size = UDim2.new(0.9, 0, 0, 25)
+copyBtn.Position = UDim2.new(0.05, 0, 0, yPos + 5)
+copyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 140)
+copyBtn.Text = "КОПИРОВАТЬ"
+copyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+copyBtn.Font = Enum.Font.SourceSansBold
+copyBtn.TextSize = 12
+copyBtn.Parent = frame
+
+copyBtn.MouseButton1Click:Connect(function()
+    setclipboard(results)
+    statusLabel.Text = "Скопировано!"
+end)
+
+-- Перетаскивание
+local UIS = game:GetService("UserInputService")
+local dragging, dragStart, startPos = false, nil, nil
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true; dragStart = input.Position; startPos = frame.Position
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+
+print("СКАНЕР МАШИН ГОТОВ")
+print("Нажимай кнопки по очереди сверху вниз")
+print("Особенно: 'Открыть ВСЕ кейсы' и 'Попытка покупки'")
