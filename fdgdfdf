@@ -1,0 +1,93 @@
+-- НАЖАТЬ НА ВСЕ МАШИНЫ В МЕНЮ (разблокировка через GUI)
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local result = "=== НАЖИМАЮ ВСЕ МАШИНЫ ===\n\n"
+
+-- Ищем Main GUI
+local main = PlayerGui:FindFirstChild("Main")
+if main then
+    -- Ищем все кнопки машин
+    for _, obj in pairs(main:GetDescendants()) do
+        if obj:IsA("TextButton") then
+            local text = obj.Text
+            local name = obj.Name
+            
+            -- Если это кнопка с названием машины
+            if name == "NameLabel" or text:find("Cart") or text:find("Car") then
+                result = result .. "Нажимаю: " .. text .. "\n"
+                
+                -- Активируем кнопку
+                pcall(function() 
+                    -- Симулируем клик
+                    for i = 1, 5 do
+                        fireclickdetector(obj) -- если есть ClickDetector
+                        obj.Visible = true
+                        -- Вызываем событие клика
+                        local connections = getconnections(obj.MouseButton1Click)
+                        for _, conn in ipairs(connections) do
+                            pcall(function() conn:Fire() end)
+                        end
+                        task.wait(0.05)
+                    end
+                end)
+            end
+        end
+    end
+end
+
+-- Ищем в Garage GUI
+local garage = PlayerGui:FindFirstChild("Garage")
+if garage then
+    result = result .. "\n--- GARAGE ---\n"
+    for _, obj in pairs(garage:GetDescendants()) do
+        if obj:IsA("TextButton") then
+            result = result .. obj.Name .. " = '" .. obj.Text .. "'\n"
+            pcall(function()
+                local connections = getconnections(obj.MouseButton1Click)
+                for _, conn in ipairs(connections) do
+                    pcall(function() conn:Fire() end)
+                end
+            end)
+        end
+    end
+end
+
+-- Спавним все машины через SpawnCart с правильными именами
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+if remotes then
+    local spawnCart = remotes:FindFirstChild("SpawnCart")
+    if spawnCart then
+        result = result .. "\n--- СПАВН ВСЕХ МАШИН ---\n"
+        local carts = {
+            "Shopping Cart", "Hover Cart", "Party Cart", "Race Cart",
+            "Amethyst Cart", "Emerald Cart", "Iron Cart", "Diamond Cart",
+            "Wood Cart", "Stone Cart", "Copper Cart", "ESP Cart",
+            "Star Cart", "Car", "Toxic Cart", "Glitch Cart",
+            "Invisible Cart", "Mate Cart", "Aluminium Cart", "Ruby Cart",
+            "Banana Cart", "Classic Cart", "Family Cart", "Laser Cart",
+            "Winter Cart", "Snow Cart", "Xmas Cart", "Gingerbread Cart",
+            "Heart Cart", "Rose Cart", "Teddy Cart", "Cupid Cart",
+            "Chocolate Cart", "Valentine Cart", "Void Cart", "God Cart",
+            "Rocket Cart", "Volcanic Cart", "Dirt Cart", "Cross Cart",
+            "Noob Cart", "Marble Cart", "Trailer Cart", "Brick Cart", "RNG Cart"
+        }
+        for _, cart in ipairs(carts) do
+            pcall(function() spawnCart:FireServer(cart) end)
+            task.wait(0.02)
+        end
+        result = result .. "Вызван SpawnCart для " .. #carts .. " машин\n"
+    end
+    
+    -- EnterGarage чтобы сохранить
+    local enterGarage = remotes:FindFirstChild("EnterGarage")
+    if enterGarage then
+        pcall(function() enterGarage:FireServer() end)
+        result = result .. "Гараж: сохранение\n"
+    end
+end
+
+result = result .. "\n✅ Проверь Spawn меню!"
+setclipboard(result)
+print(result)
