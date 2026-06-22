@@ -1,0 +1,255 @@
+-- МЕГА-АНАЛИЗАТОР v2 (с таймаутами, без зависаний)
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local RunService = game:GetService("RunService")
+
+local text = "Нажми START\n"
+local gui = Instance.new("ScreenGui")
+gui.Name = "MegaGUI2"
+gui.Parent = PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 360, 0, 420)
+frame.Position = UDim2.new(0.5, -180, 0.5, -210)
+frame.BackgroundColor3 = Color3.new(0.08,0.08,0.08)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -10, 0, 310)
+scroll.Position = UDim2.new(0, 5, 0, 5)
+scroll.BackgroundColor3 = Color3.new(0.12,0.12,0.12)
+scroll.CanvasSize = UDim2.new(0,0,0,1000)
+scroll.ScrollBarThickness = 6
+scroll.ScrollBarImageColor3 = Color3.new(0.4,0.4,0.4)
+scroll.Parent = frame
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, 0, 0, 1000)
+label.BackgroundTransparency = 1
+label.TextColor3 = Color3.new(0.9,0.9,0.9)
+label.Font = Enum.Font.SourceSans
+label.TextSize = 13
+label.TextXAlignment = Enum.TextXAlignment.Left
+label.TextYAlignment = Enum.TextYAlignment.Top
+label.TextWrapped = true
+label.Text = text
+label.Parent = scroll
+
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0, 330, 0, 42)
+btn.Position = UDim2.new(0.5, -165, 0, 325)
+btn.Text = "START"
+btn.BackgroundColor3 = Color3.new(0.2,0.8,0.2)
+btn.Font = Enum.Font.SourceSansBold
+btn.TextSize = 16
+btn.Parent = frame
+
+local copyBtn = Instance.new("TextButton")
+copyBtn.Size = UDim2.new(0, 330, 0, 32)
+copyBtn.Position = UDim2.new(0.5, -165, 0, 372)
+copyBtn.Text = "COPY"
+copyBtn.BackgroundColor3 = Color3.new(0.2,0.2,0.8)
+copyBtn.Font = Enum.Font.SourceSansBold
+copyBtn.TextSize = 14
+copyBtn.Parent = frame
+
+local function addLine(msg)
+    text = text .. msg .. "\n"
+    label.Text = text
+    label.Size = UDim2.new(1, 0, 0, label.TextBounds.Y + 10)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, label.TextBounds.Y + 10)
+    scroll.CanvasPosition = Vector2.new(0, label.TextBounds.Y)
+end
+
+-- Функция с таймаутом для RemoteFunction
+local function invokeWithTimeout(func, timeout, ...)
+    local result = nil
+    local success = false
+    local completed = false
+    local thread = coroutine.create(function()
+        local ok, res = pcall(function()
+            return func:InvokeServer(...)
+        end)
+        if ok then
+            result = res
+            success = true
+        else
+            result = res -- ошибка
+            success = false
+        end
+        completed = true
+    end)
+    coroutine.resume(thread)
+    local waited = 0
+    while not completed and waited < timeout do
+        task.wait(0.1)
+        waited = waited + 0.1
+    end
+    if not completed then
+        coroutine.close(thread)
+        return false, "timeout"
+    end
+    return success, result
+end
+
+local function analyzeAll()
+    text = ""
+    addLine("=== МЕГА-АНАЛИЗ v2 (с таймаутами) ===")
+    local totalRemoteFuncs = 0
+    local crashed = {}
+    
+    -- 1. Remote Functions с таймаутом 1.5 сек
+    addLine("\n[1] Remote Functions:")
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteFunction") then
+            totalRemoteFuncs = totalRemoteFuncs + 1
+            local ok, res = invokeWithTimeout(obj, 1.5)
+            if ok then
+                if res ~= nil then
+                    local s = tostring(res)
+                    if #s < 80 then
+                        addLine("  " .. obj.Name .. " = " .. s)
+                    else
+                        addLine("  " .. obj.Name .. " = [длинный ответ]")
+                    end
+                else
+                    addLine("  " .. obj.Name .. " = nil")
+                end
+            else
+                if res == "timeout" then
+                    addLine("  " .. obj.Name .. " = [пропущен - таймаут]")
+                    table.insert(crashed, obj.Name)
+                else
+                    addLine("  " .. obj.Name .. " = [ошибка: " .. tostring(res) .. "]")
+                end
+            end
+            task.wait(0.1)
+        end
+    end
+    
+    -- 2. Remote Events (только имена, без вызова)
+    addLine("\n[2] Remote Events:")
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") then
+            addLine("  " .. obj:GetFullName())
+        end
+    end
+    
+    -- 3. ProximityPrompt и ClickDetector
+    addLine("\n[3] ProximityPrompt:")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            addLine("  " .. obj.Parent:GetFullName())
+        end
+    end
+    addLine("\n[4] ClickDetector:")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ClickDetector") then
+            addLine("  " .. obj.Parent:GetFullName())
+        end
+    end
+    
+    -- 4. Данные игрока
+    addLine("\n[5] LocalPlayer Data:")
+    for _, child in pairs(LocalPlayer:GetChildren()) do
+        if child:IsA("IntValue") or child:IsA("StringValue") then
+            addLine("  " .. child.Name .. " = " .. tostring(child.Value))
+        elseif child:IsA("Folder") then
+            addLine("  " .. child.Name .. ":")
+            for _, sub in pairs(child:GetChildren()) do
+                pcall(function() addLine("    " .. sub.Name .. " = " .. tostring(sub.Value)) end)
+            end
+        end
+    end
+    
+    local ls = LocalPlayer:FindFirstChild("leaderstats")
+    if ls then
+        addLine("\n[6] Leaderstats:")
+        for _, stat in pairs(ls:GetChildren()) do
+            pcall(function() addLine("  " .. stat.Name .. " = " .. tostring(stat.Value)) end)
+        end
+    end
+    
+    -- 5. Workspace Values
+    addLine("\n[7] Workspace Values:")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("IntValue") or obj:IsA("StringValue") or obj:IsA("NumberValue") then
+            local v = "?"
+            pcall(function() v = tostring(obj.Value) end)
+            if #v < 40 then addLine("  " .. obj:GetFullName() .. " = " .. v) end
+        end
+    end
+    
+    -- 6. Машины
+    addLine("\n[8] Carts in ReplicatedStorage:")
+    local carts = ReplicatedStorage:FindFirstChild("Carts")
+    if carts then for _, c in pairs(carts:GetChildren()) do addLine("  " .. c.Name) end end
+    
+    addLine("\n[9] VehicleSeats on Map:")
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("VehicleSeat") then addLine("  " .. obj.Parent:GetFullName()) end
+    end
+    
+    -- 7. Эксплойт
+    addLine("\n[10] Exploit:")
+    local cs = LocalPlayer:FindFirstChild("CurrentSession")
+    if cs then cs.Value = 999999; addLine("  Money set to 999999") end
+    
+    local crates = Workspace:FindFirstChild("Crates")
+    if crates then
+        for _, obj in pairs(crates:GetDescendants()) do
+            if obj.Name == "Price" then obj.Value = 0 end
+        end
+        addLine("  Crate prices set to 0")
+    end
+    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            for i=1,5 do pcall(function() fireproximityprompt(obj) end) end
+        end
+        if obj:IsA("ClickDetector") then
+            for i=1,5 do pcall(function() fireclickdetector(obj) end) end
+        end
+    end
+    addLine("  Prompts & Detectors activated")
+    
+    if #crashed > 0 then
+        addLine("\n⚠ Пропущено функций: " .. table.concat(crashed, ", "))
+    end
+    
+    addLine("\n=== АНАЛИЗ ЗАВЕРШЁН ===")
+    setclipboard(text)
+end
+
+btn.MouseButton1Click:Connect(function()
+    task.spawn(analyzeAll)
+end)
+
+copyBtn.MouseButton1Click:Connect(function()
+    setclipboard(text)
+end)
+
+-- Перетаскивание окна
+local UIS = game:GetService("UserInputService")
+local dragging, startPos, startMouse
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        startPos = frame.Position
+        startMouse = input.Position
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - startMouse
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+
+addLine("Готов к работе. Нажми START.")
