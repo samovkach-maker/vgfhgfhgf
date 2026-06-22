@@ -1,65 +1,64 @@
--- Расшифровка Reward и попытка получить все подарки
-local modules = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+-- Попытка обмануть таймер через CurrentSession и другие IntValue
 local LocalPlayer = game:GetService("Players").LocalPlayer
-local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
 local result = ""
 
-if modules then
-    local giftModule = modules:FindFirstChild("PlaytimeGifts")
-    if giftModule then
-        local ok, data = pcall(function() return require(giftModule) end)
-        if ok and type(data) == "table" then
-            result = result .. "=== НАГРАДЫ ЗА КАЖДЫЙ ДЕНЬ ===\n\n"
-            
-            for day = 1, #data do
-                local dayData = data[day]
-                result = result .. "День " .. day .. " (Время: " .. dayData.Time .. " сек):\n"
-                
-                local reward = dayData.Reward
-                if type(reward) == "table" then
-                    for k, v in pairs(reward) do
-                        -- Если значение - таблица, расшифровываем её
-                        if type(v) == "table" then
-                            result = result .. "  " .. tostring(k) .. " = {\n"
-                            for k2, v2 in pairs(v) do
-                                result = result .. "    " .. tostring(k2) .. " = " .. tostring(v2) .. " [" .. typeof(v2) .. "]\n"
-                            end
-                            result = result .. "  }\n"
-                        else
-                            result = result .. "  " .. tostring(k) .. " = " .. tostring(v) .. " [" .. typeof(v) .. "]\n"
-                        end
-                    end
-                else
-                    result = result .. "  Reward = " .. tostring(reward) .. " [" .. typeof(reward) .. "]\n"
-                end
-                result = result .. "\n"
-            end
-        end
-    end
-end
-
--- Попытка обойти таймер: манипуляция с GetGiftData
-result = result .. "\n=== ПОПЫТКА ОБХОДА ТАЙМЕРА ===\n"
-
--- Ищем IntValue, который хранит время
-for _, child in pairs(LocalPlayer:GetChildren()) do
-    if child:IsA("IntValue") and (child.Name:lower():find("time") or child.Name:lower():find("playtime") or child.Name:lower():find("session")) then
-        result = result .. child.Name .. " было: " .. child.Value .. "\n"
-        child.Value = 9999999
-        result = result .. child.Name .. " стало: " .. child.Value .. "\n"
-    end
-end
-
--- Пробуем получить все подарки
-local claimGift = remotes:FindFirstChild("ClaimGift")
-if claimGift then
-    result = result .. "\nClaimGift для всех дней:\n"
+-- Функция для попытки получения всех подарков
+local function tryClaimAll()
+    local claimGift = remotes:FindFirstChild("ClaimGift")
+    if not claimGift then return end
+    result = result .. "\nClaimGift после изменений:\n"
     for day = 1, 9 do
         local ok, res = pcall(function() return claimGift:InvokeServer(day) end)
         result = result .. "День " .. day .. ": " .. tostring(res) .. "\n"
         task.wait(0.1)
     end
 end
+
+-- 1. Манипуляции с CurrentSession (возможно, это время в секундах)
+local cs = LocalPlayer:FindFirstChild("CurrentSession")
+if cs then
+    result = result .. "CurrentSession было: " .. cs.Value .. "\n"
+    
+    -- Пробуем установить очень большое значение (эмуляция долгой игры)
+    cs.Value = 9999999
+    result = result .. "CurrentSession стало: " .. cs.Value .. "\n"
+    tryClaimAll()
+    
+    -- Пробуем установить 0 (сброс)
+    cs.Value = 0
+    task.wait(0.5)
+    tryClaimAll()
+    
+    -- Возвращаем как было
+    cs.Value = 9999999
+end
+
+-- 2. Ищем любые другие IntValue, которые могут быть таймером
+result = result .. "\n=== ПОИСК ВСЕХ INTVALUE У LOCALPLAYER ===\n"
+for _, child in pairs(LocalPlayer:GetChildren()) do
+    if child:IsA("IntValue") or child:IsA("NumberValue") then
+        result = result .. child.Name .. " = " .. child.Value .. "\n"
+        -- Пробуем установить огромное значение
+        child.Value = 9999999
+        result = result .. "  -> установлено 9999999\n"
+    end
+end
+
+-- 3. Ищем IntValue в Character
+if LocalPlayer.Character then
+    for _, obj in pairs(LocalPlayer.Character:GetDescendants()) do
+        if obj:IsA("IntValue") and obj.Name:lower():find("time") then
+            result = result .. "Найдено в Character: " .. obj:GetFullName() .. " = " .. obj.Value .. "\n"
+            obj.Value = 9999999
+            result = result .. "  -> установлено 9999999\n"
+        end
+    end
+end
+
+-- 4. Повторная попытка
+tryClaimAll()
 
 setclipboard(result)
 print(result)
