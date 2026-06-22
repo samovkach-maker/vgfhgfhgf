@@ -1,0 +1,97 @@
+-- РАСШИРЕННАЯ ДИАГНОСТИКА: ВСЕ эвенты + попытка их вызвать
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+local result = "=== РАСШИРЕННАЯ ДИАГНОСТИКА ===\n\n"
+
+-- 1. ВСЕ RemoteEvent и RemoteFunction
+result = result .. "--- ВСЕ REMOTE СОБЫТИЯ ---\n"
+for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+        local path = obj:GetFullName()
+        result = result .. obj.ClassName .. ": " .. path .. "\n"
+    end
+end
+
+-- 2. ВСЕ объекты с ClickDetector и ProximityPrompt
+result = result .. "\n--- ВСЕ CLICKDETECTOR ---\n"
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("ClickDetector") then
+        result = result .. "ClickDetector: " .. obj.Parent:GetFullName() .. "\n"
+    end
+end
+
+result = result .. "\n--- ВСЕ PROXIMITYPROMPT ---\n"
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("ProximityPrompt") then
+        result = result .. "ProximityPrompt: " .. obj.Parent:GetFullName() .. "\n"
+    end
+end
+
+-- 3. ВСЕ IntValue/StringValue/NumberValue в Workspace
+result = result .. "\n--- ВСЕ VALUE ОБЪЕКТЫ ---\n"
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("IntValue") or obj:IsA("StringValue") or obj:IsA("NumberValue") then
+        local val = "?"
+        pcall(function() val = tostring(obj.Value) end)
+        if #val < 30 then
+            result = result .. obj.ClassName .. ": " .. obj:GetFullName() .. " = " .. val .. "\n"
+        end
+    end
+end
+
+-- 4. ВСЕ папки с названиями содержащими Cart, Car, Crate, Shop
+result = result .. "\n--- ПАПКИ С МАШИНАМИ/КЕЙСАМИ ---\n"
+local keywords = {"cart", "car", "crate", "shop", "vehicle", "garage", "skin", "case", "chest"}
+for _, obj in pairs(Workspace:GetDescendants()) do
+    local n = obj.Name:lower()
+    for _, kw in ipairs(keywords) do
+        if n:find(kw) then
+            result = result .. obj.ClassName .. ": " .. obj:GetFullName() .. "\n"
+            break
+        end
+    end
+end
+
+-- 5. Пробуем вызвать ВСЕ RemoteEvent с пустыми аргументами
+result = result .. "\n--- ВЫЗОВ ВСЕХ REMOTEEVENT ---\n"
+for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+    if obj:IsA("RemoteEvent") then
+        pcall(function() obj:FireServer() end)
+    end
+end
+result = result .. "Вызваны все RemoteEvent\n"
+
+-- 6. Пробуем вызвать ВСЕ RemoteFunction
+result = result .. "\n--- ВЫЗОВ ВСЕХ REMOTEFUNCTION ---\n"
+for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+    if obj:IsA("RemoteFunction") then
+        local ok, res = pcall(function() return obj:InvokeServer() end)
+        if ok and res ~= nil then
+            local resStr = tostring(res)
+            if #resStr < 100 then
+                result = result .. obj.Name .. " = " .. resStr .. "\n"
+            end
+        end
+    end
+end
+
+-- 7. Активируем ВСЕ ClickDetector и ProximityPrompt
+result = result .. "\n--- АКТИВАЦИЯ ВСЕХ ОБЪЕКТОВ ---\n"
+local count = 0
+for _, obj in pairs(Workspace:GetDescendants()) do
+    if obj:IsA("ClickDetector") then
+        pcall(function() fireclickdetector(obj) end)
+        count = count + 1
+    end
+    if obj:IsA("ProximityPrompt") then
+        pcall(function() fireproximityprompt(obj) end)
+        count = count + 1
+    end
+end
+result = result .. "Активировано: " .. count .. " объектов\n"
+
+setclipboard(result)
+print(result)
+print("\n✅ СКОПИРОВАНО В БУФЕР!")
