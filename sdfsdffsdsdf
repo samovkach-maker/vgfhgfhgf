@@ -1,0 +1,84 @@
+-- ПОСЛЕДНЯЯ ДИАГНОСТИКА: Где хранятся машины?
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local result = "=== ГДЕ ХРАНЯТСЯ МАШИНЫ? ===\n\n"
+
+-- 1. ВСЕ дети LocalPlayer
+result = result .. "--- LOCALPLAYER ДЕТИ ---\n"
+for _, child in pairs(LocalPlayer:GetChildren()) do
+    result = result .. child.Name .. " [" .. child.ClassName .. "]"
+    if child:IsA("IntValue") or child:IsA("StringValue") or child:IsA("NumberValue") then
+        result = result .. " = " .. tostring(child.Value)
+    elseif child:IsA("Folder") then
+        result = result .. " (" .. #child:GetChildren() .. " детей)"
+    end
+    result = result .. "\n"
+end
+
+-- 2. PlayerGui - ищем магазин
+result = result .. "\n--- PLAYERGUI (магазин?) ---\n"
+local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+if playerGui then
+    for _, gui in pairs(playerGui:GetChildren()) do
+        if gui:IsA("ScreenGui") then
+            result = result .. gui.Name .. "\n"
+            for _, child in pairs(gui:GetDescendants()) do
+                if child:IsA("TextButton") then
+                    local text = child.Text
+                    if text:find("Buy") or text:find("Own") or text:find("Equip") or text:find("Use") then
+                        result = result .. "  " .. child:GetFullName() .. " = '" .. text .. "'\n"
+                    end
+                end
+                if child:IsA("TextLabel") then
+                    local text = child.Text
+                    if text:find("Cart") or text:find("Car") or text:find("Vehicle") then
+                        result = result .. "  " .. child:GetFullName() .. " = '" .. text .. "'\n"
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- 3. PlayerScripts
+result = result .. "\n--- PLAYERSCRIPTS ---\n"
+local playerScripts = LocalPlayer:FindFirstChild("PlayerScripts")
+if playerScripts then
+    for _, script in pairs(playerScripts:GetDescendants()) do
+        if script:IsA("LocalScript") or script:IsA("ModuleScript") then
+            local name = script.Name:lower()
+            if name:find("cart") or name:find("car") or name:find("inventory") or name:find("garage") or name:find("shop") then
+                result = result .. script:GetFullName() .. "\n"
+                -- Пробуем прочитать код
+                pcall(function()
+                    result = result .. "  КОД:\n" .. script.Source:sub(1, 200) .. "\n"
+                end)
+            end
+        end
+    end
+end
+
+-- 4. ReplicatedStorage - ищем модули
+result = result .. "\n--- MODULE SCRIPTS ---\n"
+for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+    if obj:IsA("ModuleScript") then
+        local name = obj.Name:lower()
+        if name:find("cart") or name:find("car") or name:find("inventory") or name:find("data") or name:find("shop") then
+            result = result .. obj:GetFullName() .. "\n"
+        end
+    end
+end
+
+-- 5. Ищем Carts в ReplicatedStorage
+result = result .. "\n--- REPLICATED STORAGE CARTS ---\n"
+for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+    if obj.Name:lower():find("cart") or obj.Name:lower():find("car") then
+        result = result .. obj.ClassName .. ": " .. obj:GetFullName() .. "\n"
+    end
+end
+
+setclipboard(result)
+print(result)
+print("\n✅ СКОПИРОВАНО!")
