@@ -1,0 +1,53 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local result = ""
+
+local cs = LocalPlayer:FindFirstChild("CurrentSession")
+if cs then cs.Value = 999999 end
+
+-- Upgrade с индексом магазина
+local upgrade = remotes:FindFirstChild("Upgrade")
+if upgrade then
+    result = result .. "Upgrade покупка:\n"
+    for i = 1, 4 do
+        local ok, res = pcall(function() return upgrade:InvokeServer("buy", i) end)
+        if ok then result = result .. "buy " .. i .. ": " .. tostring(res) .. "\n" end
+        
+        ok, res = pcall(function() return upgrade:InvokeServer(i) end)
+        if ok then result = result .. i .. ": " .. tostring(res) .. "\n" end
+    end
+end
+
+-- CrateEffect тоже может покупать
+local crateEffect = remotes:FindFirstChild("CrateEffect")
+if crateEffect then
+    result = result .. "\nCrateEffect:\n"
+    local ok, res = pcall(function() return crateEffect:InvokeServer("buy") end)
+    if ok then result = result .. tostring(res) .. "\n" end
+end
+
+-- RedeemCode с названиями из магазина
+local redeemCode = remotes:FindFirstChild("RedeemCode")
+if redeemCode then
+    result = result .. "\nRedeemCode shop items:\n"
+    local ok, res = pcall(function() return redeemCode:InvokeServer("Locomotive") end)
+    if ok then result = result .. "Locomotive: " .. tostring(res) .. "\n" end
+    ok, res = pcall(function() return redeemCode:InvokeServer("Xmas Cart") end)
+    if ok then result = result .. "Xmas Cart: " .. tostring(res) .. "\n" end
+end
+
+-- getMultipliers
+local getMult = remotes:FindFirstChild("getMultipliers")
+if getMult then
+    result = result .. "\ngetMultipliers:\n"
+    local ok, res = pcall(function() return getMult:InvokeServer() end)
+    if ok and res and type(res) == "table" then
+        for k, v in pairs(res) do
+            result = result .. tostring(k) .. " = " .. tostring(v) .. "\n"
+        end
+    end
+end
+
+setclipboard(result)
+print(result)
