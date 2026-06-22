@@ -1,0 +1,117 @@
+-- АПГРЕЙД ГАРАЖА И ПОЛУЧЕНИЕ МАШИН
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local result = ""
+
+-- 1. Жмём ВСЕ Upgrade кнопки в гараже
+result = result .. "--- КНОПКИ UPGRADE ---\n"
+local garage = PlayerGui:FindFirstChild("Garage")
+if garage then
+    for _, obj in pairs(garage:GetDescendants()) do
+        if obj:IsA("TextButton") and obj.Text == "Upgrade" then
+            result = result .. obj:GetFullName() .. "\n"
+            -- Активируем кнопку через connections
+            pcall(function()
+                local conns = getconnections(obj.MouseButton1Click)
+                for _, conn in ipairs(conns) do
+                    for i = 1, 50 do
+                        conn:Fire()
+                        task.wait(0.03)
+                    end
+                end
+            end)
+        end
+    end
+end
+
+-- 2. Upgrade через Remotes
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+if remotes then
+    local upgradeFunc = remotes:FindFirstChild("Upgrade")
+    if upgradeFunc then
+        result = result .. "\n--- REMOTE UPGRADE ---\n"
+        for i = 1, 100 do
+            local ok, res = pcall(function() return upgradeFunc:InvokeServer(i) end)
+            if ok and res then
+                result = result .. "Upgrade " .. i .. ": " .. tostring(res) .. "\n"
+            end
+            task.wait(0.03)
+        end
+    end
+    
+    -- GarageUpgrade
+    local garageUpgrade = remotes:FindFirstChild("GarageUpgrade")
+    if garageUpgrade then
+        result = result .. "\n--- GARAGE UPGRADE ---\n"
+        for i = 1, 50 do
+            pcall(function() garageUpgrade:FireServer(i) end)
+            pcall(function() garageUpgrade:FireServer("Max") end)
+            pcall(function() garageUpgrade:FireServer("Unlock") end)
+            task.wait(0.03)
+        end
+    end
+    
+    -- enterUpgrade / exitUpgrade
+    local enterUpgrade = remotes:FindFirstChild("enterUpgrade")
+    local exitUpgrade = remotes:FindFirstChild("exitUpgrade")
+    if enterUpgrade and exitUpgrade then
+        result = result .. "\n--- UPGRADE ЦИКЛ ---\n"
+        for i = 1, 20 do
+            pcall(function() enterUpgrade:FireServer() end)
+            task.wait(0.05)
+            local upgrade = remotes:FindFirstChild("Upgrade")
+            if upgrade then
+                pcall(function() upgrade:InvokeServer(i) end)
+            end
+            task.wait(0.05)
+            pcall(function() exitUpgrade:FireServer() end)
+            task.wait(0.05)
+        end
+    end
+end
+
+-- 3. enterUpgrade GUI
+local upgradeGui = PlayerGui:FindFirstChild("Upgrade")
+if upgradeGui then
+    result = result .. "\n--- UPGRADE GUI ---\n"
+    for _, obj in pairs(upgradeGui:GetDescendants()) do
+        if obj:IsA("TextButton") then
+            result = result .. obj:GetFullName() .. " = '" .. obj.Text .. "'\n"
+            pcall(function()
+                local conns = getconnections(obj.MouseButton1Click)
+                for _, conn in ipairs(conns) do
+                    for i = 1, 10 do
+                        conn:Fire()
+                        task.wait(0.02)
+                    end
+                end
+            end)
+        end
+    end
+end
+
+-- 4. RedeemCode с названиями машин как код
+local redeemCode = remotes:FindFirstChild("RedeemCode")
+if redeemCode then
+    result = result .. "\n--- REDEEM CART NAMES ---\n"
+    local cartNames = {"God", "Laser", "Rocket", "Star", "Family", "Void", "ESP", "Diamond", "Gold"}
+    for _, name in ipairs(cartNames) do
+        pcall(function() redeemCode:InvokeServer(name) end)
+        pcall(function() redeemCode:InvokeServer(name .. "CART") end)
+        pcall(function() redeemCode:InvokeServer("FREE" .. name) end)
+    end
+end
+
+-- 5. CurrentSession может быть кошельком
+local currentSession = LocalPlayer:FindFirstChild("CurrentSession")
+if currentSession then
+    result = result .. "\n--- CurrentSession: " .. currentSession.Value .. " ---\n"
+    currentSession.Value = 999999
+    result = result .. "Изменён на 999999\n"
+end
+
+result = result .. "\n✅ Проверь гараж и инвентарь!"
+setclipboard(result)
+print(result)
