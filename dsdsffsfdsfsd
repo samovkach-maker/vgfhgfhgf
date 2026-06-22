@@ -1,0 +1,103 @@
+-- ВЗЛОМ ИНВЕНТАРЯ: ddddd + UpdateStats + getShop
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+
+local result = "=== ПРЯМОЙ ВЗЛОМ ИНВЕНТАРЯ ===\n\n"
+
+-- 1. ddddd - странный эвент, может быть дебаг-командой
+local ddddd = remotes:FindFirstChild("ddddd")
+if ddddd then
+    result = result .. "ddddd тест:\n"
+    local args = {
+        {},
+        {LocalPlayer},
+        {"AllCarts"},
+        {"UnlockAll"},
+        {"GiveAll"},
+        {"All"},
+        {"God Cart"},
+        {"Laser Cart"},
+        {"Rocket Cart"},
+        {"Star Cart"},
+        {"Family Cart"},
+        {1}, {2}, {3}, {4}, {5},
+        {true}, {"true"}, {"yes"},
+    }
+    for _, args in ipairs(args) do
+        pcall(function() ddddd:FireServer(unpack(args)) end)
+    end
+    result = result .. "Вызван с разными аргументами\n"
+end
+
+-- 2. getShop - получаем полный список магазина
+local getShop = remotes:FindFirstChild("getShop")
+if getShop then
+    result = result .. "\ngetShop полный:\n"
+    local ok, shop = pcall(function() return getShop:InvokeServer() end)
+    if ok and shop then
+        if type(shop) == "table" then
+            for k, v in pairs(shop) do
+                result = result .. tostring(k) .. ": " .. tostring(v) .. "\n"
+            end
+        else
+            result = result .. tostring(shop) .. "\n"
+        end
+    end
+end
+
+-- 3. UpdateStats - может обновить инвентарь
+local updateStats = remotes:FindFirstChild("UpdateStats")
+if updateStats then
+    result = result .. "\nUpdateStats манипуляция:\n"
+    pcall(function() updateStats:FireServer("Carts", "All") end)
+    pcall(function() updateStats:FireServer("Inventory", "Unlock") end)
+    pcall(function() updateStats:FireServer("God Cart", true) end)
+    pcall(function() updateStats:FireServer("Laser Cart", true) end)
+    pcall(function() updateStats:FireServer("Rocket Cart", true) end)
+    result = result .. "Вызван\n"
+end
+
+-- 4. Попытка прямого изменения CurrentSession
+local ls = LocalPlayer:FindFirstChild("leaderstats")
+if ls then
+    result = result .. "\nleaderstats:\n"
+    for _, stat in pairs(ls:GetChildren()) do
+        result = result .. stat.Name .. " = " .. tostring(stat.Value) .. "\n"
+    end
+end
+
+-- 5. CurrentSession может быть валютой - пробуем увеличить
+local currentSession = LocalPlayer:FindFirstChild("CurrentSession")
+if currentSession and currentSession:IsA("IntValue") then
+    result = result .. "\nCurrentSession: было " .. currentSession.Value
+    currentSession.Value = 999999
+    result = result .. " → " .. currentSession.Value .. "\n"
+end
+
+-- 6. ClaimedGifts / LoadedGifts
+local claimedGifts = LocalPlayer:FindFirstChild("ClaimedGifts")
+local loadedGifts = LocalPlayer:FindFirstChild("LoadedGifts")
+if claimedGifts then
+    result = result .. "\nClaimedGifts дети:\n"
+    for _, child in pairs(claimedGifts:GetChildren()) do
+        result = result .. child.Name .. "\n"
+    end
+end
+if loadedGifts and loadedGifts.Value then
+    result = result .. "LoadedGifts: " .. loadedGifts.Value:GetFullName() .. "\n"
+end
+
+-- 7. Пробуем Upgrade с максимальным значением
+local upgrade = remotes:FindFirstChild("Upgrade")
+if upgrade thensf
+    result = result .. "\nUpgrade всё:\n"
+    for i = 1, 100 do
+        pcall(function() upgrade:InvokeServer(i) end)
+    end
+    result = result .. "Вызван 100 раз\n"
+end
+
+result = result .. "\n✅ ПРОВЕРЬ ИНВЕНТАРЬ!"
+setclipboard(result)
+print(result)
