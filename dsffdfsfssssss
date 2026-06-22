@@ -1,0 +1,63 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local result = ""
+
+local cs = LocalPlayer:FindFirstChild("CurrentSession")
+if cs then cs.Value = 999999 end
+
+local enterUpgrade = remotes:FindFirstChild("enterUpgrade")
+local exitUpgrade = remotes:FindFirstChild("exitUpgrade")
+local upgradeFunc = remotes:FindFirstChild("Upgrade")
+local getShop = remotes:FindFirstChild("getShop")
+
+if enterUpgrade and exitUpgrade and upgradeFunc then
+    -- Получаем магазин
+    local shop = nil
+    if getShop then
+        local ok, s = pcall(function() return getShop:InvokeServer() end)
+        if ok then shop = s end
+    end
+    
+    result = result .. "Покупаю предметы из магазина...\n"
+    
+    for i = 1, (shop and #shop or 4) do
+        -- Заходим в Upgrade
+        pcall(function() enterUpgrade:FireServer() end)
+        task.wait(0.2)
+        
+        -- Выбираем предмет через нажатие кнопки в GUI
+        local upgradeGui = PlayerGui:FindFirstChild("Upgrade")
+        if upgradeGui then
+            -- Ищем кнопки машин
+            local buttons = {}
+            for _, obj in pairs(upgradeGui:GetDescendants()) do
+                if obj:IsA("TextButton") and obj.Text == "" and obj.Name:find("Cart") then
+                    table.insert(buttons, obj)
+                end
+            end
+            
+            -- Жмём на первую доступную (или i-ю)
+            if #buttons >= i then
+                pcall(function()
+                    local conns = getconnections(buttons[i].MouseButton1Click)
+                    for _, conn in ipairs(conns) do conn:Fire() end
+                end)
+                task.wait(0.1)
+            end
+        end
+        
+        -- Вызываем Upgrade
+        local ok, res = pcall(function() return upgradeFunc:InvokeServer() end)
+        result = result .. i .. ": " .. tostring(res) .. "\n"
+        
+        -- Выходим
+        pcall(function() exitUpgrade:FireServer() end)
+        task.wait(0.2)
+    end
+end
+
+result = result .. "\n✅ Проверь инвентарь!"
+setclipboard(result)
+print(result)
